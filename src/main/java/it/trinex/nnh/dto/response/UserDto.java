@@ -6,10 +6,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.Optional;
-
 /**
- * User DTO.
+ * User DTO for authentication responses.
+ *
+ * <p>This DTO contains only authentication-related data from the JWT principal.
+ * Application-specific profile data (firstName, lastName, etc.) should be fetched
+ * separately using the auth account id and your custom profile entities.</p>
  */
 @Data
 @NoArgsConstructor
@@ -33,21 +35,6 @@ public class UserDto {
     private String role;
 
     /**
-     * Owner profile ID (if applicable).
-     */
-    private Optional<Long> ownerId;
-
-    /**
-     * User's first name.
-     */
-    private String firstName;
-
-    /**
-     * User's last name.
-     */
-    private String lastName;
-
-    /**
      * Create UserDto from a JwtUserPrincipal.
      *
      * @param principal the JWT user principal
@@ -58,9 +45,6 @@ public class UserDto {
                 .id(principal.getId())
                 .email(principal.getUsername())
                 .role(principal.getRole())
-                .ownerId(principal.getOwnerId())
-                .firstName(principal.getFirstName())
-                .lastName(principal.getLastName())
                 .build();
     }
 }

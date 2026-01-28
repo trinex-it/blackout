@@ -5,7 +5,9 @@ description: Use this document whenever working on authentication-related featur
 
 # Authentication System Documentation
 
-This document provides a complete reference for the JWT-based authentication system implemented in this Spring Boot application. It is designed to be replicable as a standalone Maven package.
+This document provides a complete reference for the JWT-based authentication library implemented in this Spring Boot application. It is designed to be replicable as a standalone Maven package.
+
+**Core Principle:** This library provides **authentication only**. It handles `AuthAccount` (credentials, roles, tokens). The application developer creates their own profile entities (e.g., Owner, Customer, Employee) that reference `AuthAccount`.
 
 ## Table of Contents
 
@@ -21,6 +23,7 @@ This document provides a complete reference for the JWT-based authentication sys
 10. [Maven Dependencies](#10-maven-dependencies)
 11. [Configuration](#11-configuration)
 12. [LLM Guidelines](#12-llm-guidelines)
+13. [Creating Custom Profile Entities](#13-creating-custom-profile-entities)
 
 ---
 
@@ -33,17 +36,14 @@ This document provides a complete reference for the JWT-based authentication sys
 | Spring Security | Starter | 3.5.7 |
 | JWT Library | JJWT | 0.12.5 |
 | Password Encoder | BCrypt | (Spring Security default) |
-| Database | PostgreSQL | - |
-| ORM | Spring Data JPA / Hibernate | - |
-| Cache | Redis | - |
-| Rate Limiting | Bucket4j | 8.15.0 |
 | Validation | Jakarta Validation | - |
+| Rate Limiting | Bucket4j | 8.15.0 |
 
 ---
 
 ## 2. Architecture Overview
 
-The authentication system follows a **stateless JWT-based architecture**:
+The authentication library follows a **stateless JWT-based architecture**:
 
 ```
 ┌─────────────┐      Login/Refresh       ┌──────────────────┐
@@ -72,9 +72,9 @@ The authentication system follows a **stateless JWT-based architecture**:
 ┌──────────────────────────────────────────────────┐
 │         SecurityContext Authentication           │
 │  ┌─────────────────────────────────────────┐    │
-│  │  JWTUserPrincipal                       │    │
-│  │  - id, username, ownerId                │    │
-│  │  - authorities (ROLE_OWNER, ROLE_ADMIN) │    │
+│  │  JwtUserPrincipal                       │    │
+│  │  - id, username, password               │    │
+│  │  - role, authorities                    │    │
 │  └─────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────┘
        │
@@ -83,9 +83,9 @@ The authentication system follows a **stateless JWT-based architecture**:
 ┌──────────────────────────────────────────────────┐
 │         CurrentUserService                       │
 │  - getCurrentAuthAccountId()                    │
-│  - getCurrentOwnerId()                          │
-│  - getCurrentAuthAccount()                      │
-│  - getCurrentOwner()                            │
+│  - getCurrentUserPrincipal()                    │
+│  - getCurrentEmail()                            │
+│  - getCurrentRole()                             │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -155,7 +155,7 @@ public class SecurityConfig {
 
 ### 3.2 JWT Service
 
-**File:** `service/JWTService.java`
+**File:** `security/jwt/JwtService.java`
 
 **Responsibilities:**
 - Generate access tokens
@@ -168,8 +168,8 @@ public class SecurityConfig {
 
 | Method | Description |
 |--------|-------------|
-| `generateAccessToken(JWTUserPrincipal)` | Creates a new access token |
-| `generateRefreshToken(JWTUserPrincipal)` | Creates a new refresh token |
+| `generateAccessToken(JwtUserPrincipal)` | Creates a new access token |
+| `generateRefreshToken(JwtUserPrincipal)` | Creates a new refresh token |
 | `isTokenValid(String)` | Validates an access token |
 | `isRefreshTokenValid(String)` | Validates a refresh token |
 | `extractUserPrincipal(String)` | Reconstructs user principal from token |
@@ -187,11 +187,11 @@ public class SecurityConfig {
 
 ### 3.3 JWT Authentication Filter
 
-**File:** `security/JwtAuthenticationFilter.java`
+**File:** `security/jwt/JwtAuthenticationFilter.java`
 
 **Responsibilities:**
 - Extract JWT from `access_token` cookie
-- Validate token using `JWTService`
+- Validate token using `JwtService`
 - Create `UsernamePasswordAuthenticationToken`
 - Set authentication in `SecurityContextHolder`
 
@@ -199,32 +199,61 @@ public class SecurityConfig {
 
 ### 3.4 User Details Service
 
-**File:** `service/CustomUserDetailsService.java`
+**File:** `security/CustomUserDetailsService.java`
 
 **Responsibilities:**
 - Load user by email (not username!)
 - Check account active status
-- Create `JWTUserPrincipal` with authorities
-- Fetch owner profile for OWNER type accounts
+- Create `JwtUserPrincipal` with authorities
 
 **Note:** Although the method is `loadUserByUsername`, it actually loads by **email**.
 
+**Extension Point:** This is where you load your custom profile entities if needed.
+
 ### 3.5 JWT User Principal
 
-**File:** `security/JWTUserPrincipal.java`
+**File:** `security/jwt/JwtUserPrincipal.java`
 
-**Type:** Java Record implementing `UserDetails`
+**Type:** Java class implementing `UserDetails`
 
-**Fields:**
+**Core Properties Only:**
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | Long | AuthAccount ID |
 | `username` | String | Email address |
 | `password` | String | Password hash (for validation) |
-| `ownerId` | Optional\<Long\> | Owner profile ID (if applicable) |
-| `firstName` | String | User's first name |
-| `lastName` | String | User's last name |
+| `role` | String | AuthAccountType (from enum or custom) |
 | `authorities` | Collection\<? extends GrantedAuthority\> | Spring Security authorities |
+
+**Design Note:** This class contains only fundamental authentication properties. Application-specific data (firstName, lastName, profileId, etc.) should be accessed through your custom profile entities.
+
+**Constructor:**
+```java
+public JwtUserPrincipal(
+    Long id,
+    String username,
+    String password,
+    String role,
+    Collection<? extends GrantedAuthority> authorities
+)
+```
+
+**Factory Method from AuthAccount:**
+```java
+public static JwtUserPrincipal create(AuthAccount authAccount) {
+    List<GrantedAuthority> authorities = List.of(
+        new SimpleGrantedAuthority("ROLE_" + authAccount.getType().name())
+    );
+
+    return new JwtUserPrincipal(
+        authAccount.getId(),
+        authAccount.getEmail(),
+        authAccount.getPasswordHash(),
+        authAccount.getType().name(),
+        authorities
+    );
+}
+```
 
 **All UserDetails methods return `true` except:**
 - `getPassword()` - returns the password hash
@@ -239,12 +268,13 @@ public class SecurityConfig {
 **Methods:**
 ```java
 public Long getCurrentAuthAccountId()         // Returns AuthAccount ID
-public Optional<Long> getCurrentOwnerId()      // Returns Owner ID (if any)
-public AuthAccount getCurrentAuthAccount()     // Returns AuthAccount entity
-public Optional<Owner> getCurrentOwner()       // Returns Owner entity
+public JwtUserPrincipal getCurrentUserPrincipal() // Returns full principal
+public String getCurrentEmail()               // Returns email
+public String getCurrentRole()                // Returns role
+public boolean hasRole(String role)           // Check if user has role
 ```
 
-**Important:** Do NOT pass `ownerId` or `authAccountId` as parameters when referring to the currently logged-in user. Always use this service.
+**Important:** Do NOT pass `authAccountId` as parameters when referring to the currently logged-in user. Always use this service.
 
 ---
 
@@ -265,14 +295,14 @@ public Optional<Owner> getCurrentOwner()       // Returns Owner entity
      │                                   │    - Uses CustomUserDetailsService
      │                                   │    - Validates with BCrypt
      │                                   │
-     │                                   │ 2. Extract JWTUserPrincipal
+     │                                   │ 2. Extract JwtUserPrincipal
      │                                   │
-     │                                   │ 3. JWTService.generateTokens()
+     │                                   │ 3. JwtService.generateTokens()
      │                                   │
      │<──────────────────────────────────┤
      │ Set-Cookie: access_token=...       │
      │ Set-Cookie: refresh_token=...      │
-     │ {expiresIn: 3600000}               │
+     │ {expiresIn: 900000}                │
      │                                   │
 ```
 
@@ -287,8 +317,8 @@ public Optional<Owner> getCurrentOwner()       // Returns Owner entity
      ├──────────────────────────────────>│
      │                                   │
      │                                   │ 1. Extract token from cookie
-     │                                   │ 2. JWTService.isTokenValid()
-     │                                   │ 3. JWTService.extractUserPrincipal()
+     │                                   │ 2. JwtService.isTokenValid()
+     │                                   │ 3. JwtService.extractUserPrincipal()
      │                                   │ 4. Create Authentication object
      │                                   │ 5. SecurityContext.setAuthentication()
      │                                   │
@@ -308,15 +338,15 @@ public Optional<Owner> getCurrentOwner()       // Returns Owner entity
      │ Cookie: refresh_token=...         │
      ├──────────────────────────────────>│
      │                                   │
-     │                                   │ 1. JWTService.isRefreshTokenValid()
-     │                                   │ 2. JWTService.extractUserPrincipal()
+     │                                   │ 1. JwtService.isRefreshTokenValid()
+     │                                   │ 2. JwtService.extractUserPrincipal()
      │                                   │    (no DB call!)
      │                                   │ 3. Generate new access token
      │                                   │ 4. Update cookies
      │                                   │
      │<──────────────────────────────────┤
      │ Set-Cookie: access_token=...       │
-     │ {expiresIn: 3600000}               │
+     │ {expiresIn: 900000}                │
      │                                   │
 ```
 
@@ -352,27 +382,39 @@ All JWT tokens contain the following claims:
 | `sub` | String | Username (email) |
 | `jti` | String | JWT ID (UUID for revocation) |
 | `uid` | Long | AuthAccount ID |
-| `role` | String | AuthAccountType (OWNER/ADMIN) |
-| `ownerId` | Long (nullable) | Owner profile ID |
-| `firstName` | String | User's first name |
-| `lastName` | String | User's last name |
+| `role` | String | AuthAccountType |
 | `tokenType` | String | "ACCESS" or "REFRESH" |
 | `iat` | Date | Issued at |
 | `exp` | Date | Expiration |
+
+**Note:** Tokens only contain authentication data. Application-specific data (firstName, lastName, etc.) is accessed via your custom profile entities using the `uid` claim.
 
 ### 5.2 Token Expiration (Configurable)
 
 **Access Tokens:**
 | Role | Expiration | Example Value |
 |------|------------|---------------|
-| OWNER | Configurable | 15 minutes (3600000 ms) |
-| ADMIN | Configurable | 15 minutes (3600000 ms) |
+| Any | Configurable | 15 minutes (900000 ms) |
 
 **Refresh Tokens:**
 | Role | Expiration | Example Value |
 |------|------------|---------------|
-| OWNER | Configurable | 90 days (7776000000 ms) |
-| ADMIN | Configurable | 7 days (604800000 ms) |
+| Any | Configurable | 7-90 days |
+
+Configure per role in `application.yaml`:
+```yaml
+nnh:
+  security:
+    jwt:
+      access-token:
+        expiration:
+          USER: 900000        # 15 minutes
+          ADMIN: 1800000      # 30 minutes
+      refresh-token:
+        expiration:
+          USER: 604800000     # 7 days
+          ADMIN: 7776000000   # 90 days
+```
 
 ### 5.3 Token Storage
 
@@ -408,50 +450,79 @@ All `/api/**` endpoints (except those listed above) require authentication.
 
 ### 6.3 CORS Configuration
 
-Allowed origins:
-- `http://localhost:4200`
-- `http://localhost:5173`
-- `https://dash.queuer.app`
-- `https://queuer.app`
+Configured via `SecurityProperties`:
+
+```yaml
+nnh:
+  security:
+    cors:
+      allowed-origins:
+        - http://localhost:4200
+        - http://localhost:5173
+        - https://yourdomain.com
+      allow-credentials: true
+```
 
 Allowed methods: GET, POST, PUT, DELETE, PATCH, OPTIONS
 
 Allowed headers: `*` (all headers)
 
-Allow credentials: `true`
-
 ---
 
 ## 7. Data Models
 
-### 7.1 AuthAccount Entity
+### 7.1 AuthAccount Entity (Core)
 
 **File:** `model/AuthAccount.java`
 
+This is the **only core entity** provided by the library. It handles authentication credentials.
+
 ```java
 @Entity
+@Table(name = "auth_accounts")
 public class AuthAccount {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private AuthAccountType type;  // OWNER, ADMIN
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AuthAccountType type;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = false, length = 255)
     private String email;
 
-    @Column(nullable = false)
+    @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
+    @Column(name = "totp_secret")
     private String totpSecret;  // For 2FA (future)
 
     @Column(nullable = false)
-    private boolean isActive;
+    @Builder.Default
+    private Boolean isActive = true;
 
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "password_changed_at")
+    private LocalDateTime passwordChangedAt;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
 }
 ```
+
+**Key Features:**
+- Unique email constraint
+- Account type (extensible enum)
+- Active status for account activation/deactivation
+- Audit timestamps
+- Password change tracking
+- Last login tracking
 
 ### 7.2 AuthAccountType Enum
 
@@ -459,70 +530,38 @@ public class AuthAccount {
 
 ```java
 public enum AuthAccountType {
-    OWNER,
+    USER,
     ADMIN
 }
 ```
 
+**Extension:** You can add custom types to this enum for your application's needs.
+
 **Authority Mapping:** The enum value is prefixed with `ROLE_` for Spring Security:
-- `OWNER` → `ROLE_OWNER`
+- `USER` → `ROLE_USER`
 - `ADMIN` → `ROLE_ADMIN`
+- Custom → `ROLE_CUSTOM`
 
-### 7.3 Owner Entity
-
-**File:** `model/Owner.java`
-
+**Example Custom Types:**
 ```java
-@Entity
-public class Owner {
-    @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private Long id;
-
-    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "auth_account_id", nullable = false, unique = true)
-    private AuthAccount authAccount;
-
-    @NotBlank
-    @Size(max = 100)
-    private String firstName;
-
-    @NotBlank
-    @Size(max = 100)
-    private String lastName;
-
-    @NotBlank
-    @Column(unique = true, nullable = false)
-    @Pattern(regexp = "^[A-Z]{6}\\d{2}[A-Z]\\d{2}[A-Z]\\d{3}[A-Z]$")
-    private String fiscalCode;
-
-    @NotBlank
-    @Column(unique = true, nullable = false)
-    private String phoneNumber;
-
-    @ManyToMany(mappedBy = "owners")
-    private Set<Organization> managedOrganizations = new HashSet<>();
-
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+public enum AuthAccountType {
+    USER,
+    ADMIN,
+    CUSTOMER,
+    VENDOR,
+    EMPLOYEE,
+    MODERATOR
 }
 ```
 
-### 7.4 Repository Interfaces
+### 7.3 Repository Interfaces
 
-**AuthAccountRepository:**
+**AuthAccountRepository (provided by library):**
+
 ```java
 public interface AuthAccountRepository extends JpaRepository<AuthAccount, Long> {
     Optional<AuthAccount> findByEmail(String email);
     Optional<AuthAccount> findFirstByType(AuthAccountType type);
-}
-```
-
-**OwnerRepository:**
-```java
-public interface OwnerRepository extends JpaRepository<Owner, Long> {
-    Owner findByAuthAccount(AuthAccount authAccount);
-    Optional<Owner> findByAuthAccount_Email(String email);
 }
 ```
 
@@ -533,37 +572,6 @@ public interface OwnerRepository extends JpaRepository<Owner, Long> {
 ### 8.1 Authentication Controller
 
 **Base Path:** `/api/auth`
-
-#### POST /api/auth/signup
-
-Creates a new Owner account (inactive by default).
-
-**Request:**
-```json
-{
-  "email": "owner@example.com",
-  "password": "SecurePassword123!",
-  "firstName": "Mario",
-  "lastName": "Rossi",
-  "fiscalCode": "RSSMRA80A01H501U",
-  "phoneNumber": "+39123456789"
-}
-```
-
-**Response (201 Created):**
-```json
-{
-  "ownerId": 1,
-  "authAccountId": 10,
-  "email": "owner@example.com",
-  "firstName": "Mario",
-  "lastName": "Rossi",
-  "active": false,
-  "message": "Owner account created. Awaiting activation by admin."
-}
-```
-
-**Rate Limiting:** 5 requests per 60 seconds
 
 #### POST /api/auth/login
 
@@ -581,7 +589,12 @@ Authenticates user with email and password.
 **Response (200 OK):**
 ```json
 {
-  "expiresIn": 3600000
+  "expiresIn": 900000,
+  "user": {
+    "id": 1,
+    "email": "user@example.com",
+    "role": "ROLE_USER"
+  }
 }
 ```
 
@@ -601,7 +614,7 @@ Refreshes access token using valid refresh token.
 **Response (200 OK):**
 ```json
 {
-  "expiresIn": 3600000
+  "expiresIn": 900000
 }
 ```
 
@@ -617,10 +630,7 @@ Returns current authentication status.
   "authenticated": true,
   "userId": 1,
   "email": "user@example.com",
-  "role": "ROLE_OWNER",
-  "ownerId": 1,
-  "firstName": "Mario",
-  "lastName": "Rossi"
+  "role": "ROLE_USER"
 }
 ```
 
@@ -648,15 +658,16 @@ Logs out user by clearing authentication cookies.
 ### 9.1 Exception Hierarchy
 
 ```
-ApiException (base exception)
-├── AccountNotActiveException
-├── InvalidTokenException
+AuthenticationException (base exception)
+├── TokenExpiredException
+├── UserNotFoundException
+├── UserAlreadyExistsException
 └── (other custom exceptions)
 ```
 
 ### 9.2 Global Exception Handler
 
-**File:** `exception/ApiExceptionHandler.java`
+**File:** `exception/GlobalExceptionHandler.java`
 
 **Handled Exceptions:**
 
@@ -664,11 +675,10 @@ ApiException (base exception)
 |-----------|-------------|----------|---------|
 | `BadCredentialsException` | 401 | AUTHENTICATION | Invalid email or password |
 | `UsernameNotFoundException` | 401 | AUTHENTICATION | Invalid email or password |
-| `AccountNotActiveException` | 401 | ACCOUNT_NOT_ACTIVE | Account is not active |
-| `InvalidTokenException` | 401 | INVALID_TOKEN | Token is invalid or expired |
+| `AuthenticationException` | 401 | AUTHENTICATION | Account is not active |
+| `TokenExpiredException` | 401 | TOKEN_EXPIRED | Token is expired |
 | `MethodArgumentNotValidException` | 400 | VALIDATION | Validation failed |
 | `MissingRequestCookieException` | 401 | AUTHENTICATION | Missing required cookie |
-| `RateLimitExceededException` | 429 | RATE_LIMIT_EXCEEDED | Too many requests |
 
 ### 9.3 Standard Error Response Format
 
@@ -721,116 +731,100 @@ ApiException (base exception)
     <artifactId>spring-boot-starter-validation</artifactId>
 </dependency>
 
-<!-- Rate Limiting -->
+<!-- Rate Limiting (optional) -->
 <dependency>
     <groupId>com.bucket4j</groupId>
     <artifactId>bucket4j_jdk17-core</artifactId>
     <version>8.15.0</version>
 </dependency>
-
-<!-- Redis (for token revocation support) -->
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-data-redis</artifactId>
-</dependency>
-```
-
-### 10.2 Annotation Processors
-
-```xml
-<plugin>
-    <groupId>org.apache.maven.plugins</groupId>
-    <artifactId>maven-compiler-plugin</artifactId>
-    <configuration>
-        <annotationProcessorPaths>
-            <path>
-                <groupId>org.projectlombok</groupId>
-                <artifactId>lombok</artifactId>
-                <version>${lombok.version}</version>
-            </path>
-            <path>
-                <groupId>org.mapstruct</groupId>
-                <artifactId>mapstruct-processor</artifactId>
-                <version>1.6.3</version>
-            </path>
-            <path>
-                <groupId>org.projectlombok</groupId>
-                <artifactId>lombok-mapstruct-binding</artifactId>
-                <version>0.2.0</version>
-            </path>
-        </annotationProcessorPaths>
-    </configuration>
-</plugin>
 ```
 
 ---
 
 ## 11. Configuration
 
-### 11.1 JWT Configuration Properties
+### 11.1 Application Configuration
 
 **File:** `application.yaml`
 
 ```yaml
-security:
-  jwt:
-    # Base64-encoded secret key (use at least 256 bits)
-    secret: CJwRxZA4Eh2Tx8ekR6FAieZceo2qiMpeuLtk1fb5V93vDlk7PQDnGm9E2KuLGfAr
-
-    access-token:
-      expiration:
-        OWNER: 3600000      # 15 minutes (in milliseconds)
-        ADMIN: 3600000      # 15 minutes
-
-    refresh-token:
-      expiration:
-        OWNER: 7776000000   # 90 days (in milliseconds)
-        ADMIN: 604800000    # 7 days
+nnh:
+  security:
+    enabled: true
+    use-jpa: true
+    use-in-memory-auth: false
+    expose-controller: true
+    jwt:
+      secret: YOUR_BASE64_SECRET_HERE_MINIMUM_256_BITS
+      access-token:
+        expiration:
+          USER: 900000        # 15 minutes (in milliseconds)
+          ADMIN: 1800000      # 30 minutes
+      refresh-token:
+        expiration:
+          USER: 604800000     # 7 days (in milliseconds)
+          ADMIN: 7776000000   # 90 days
+    cookie:
+      http-only: true
+      secure: true
+      same-site: None
+      path: /
+    cors:
+      allowed-origins:
+        - http://localhost:4200
+        - http://localhost:5173
+      allow-credentials: true
 ```
 
-**Configuration Class:** `config/JwtProperties.java`
+**Configuration Class:** `config/SecurityProperties.java`
 
 ```java
-@Component
-@ConfigurationProperties(prefix = "security.jwt")
 @Getter
 @Setter
-public class JwtProperties {
-    private String secret;
-    private TokenExpiration accessToken;
-    private TokenExpiration refreshToken;
+@ConfigurationProperties(prefix = "nnh.security")
+public class SecurityProperties {
+    private boolean enabled = true;
+    private boolean useJpa = true;
+    private boolean useInMemoryAuth = false;
+    private boolean exposeController = true;
+
+    private Jwt jwt = new Jwt();
+    private Cookie cookie = new Cookie();
+    private Cors cors = new Cors();
+
+    @Getter
+    @Setter
+    public static class Jwt {
+        private String secret;
+        private TokenExpiration accessToken = new TokenExpiration();
+        private TokenExpiration refreshToken = new TokenExpiration();
+    }
 
     @Getter
     @Setter
     public static class TokenExpiration {
-        private Map<String, Long> expiration;
+        private Map<String, Long> expiration = new HashMap<String, Long>() {{
+            put("USER", 900000L);      // 15 minutes
+            put("ADMIN", 900000L);     // 15 minutes
+        }};
+
+        public Long getExpirationForRole(String role) {
+            return expiration.getOrDefault(role, 900000L);
+        }
     }
 }
 ```
 
-### 11.2 CORS Configuration
+### 11.2 Secret Key Generation
 
-**File:** `config/SecurityConfig.java`
+Generate a secure Base64-encoded secret key (minimum 256 bits):
 
-```java
-@Bean
-public CorsConfigurationSource corsConfigurationSource() {
-    CorsConfiguration configuration = new CorsConfiguration();
-    configuration.setAllowedOrigins(List.of(
-        "http://localhost:4200",
-        "https://dash.queuer.app",
-        "https://queuer.app",
-        "http://localhost:5173"
-    ));
-    configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-    configuration.setAllowedHeaders(List.of("*"));
-    configuration.setAllowCredentials(true);
-    configuration.setMaxAge(3600L);
+```bash
+# Using openssl
+openssl rand -base64 32
 
-    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-    source.registerCorsConfiguration("/api/**", configuration);
-    return source;
-}
+# Or using Python
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
 ---
@@ -843,8 +837,7 @@ public CorsConfigurationSource corsConfigurationSource() {
 2. **Create/update repositories** for data access
 3. **Create/update services** to access repositories
 4. **Create/update controllers** to access services
-5. **Use MapStruct** for entity-DTO mapping
-6. **Throw specific exceptions** (don't catch just to return ResponseEntity)
+5. **Throw specific exceptions** (don't catch just to return ResponseEntity)
 
 ### 12.2 Accessing Current User
 
@@ -857,7 +850,8 @@ public class MyService {
 
     public void doSomething() {
         Long authAccountId = currentUserService.getCurrentAuthAccountId();
-        Optional<Long> ownerId = currentUserService.getCurrentOwnerId();
+        String email = currentUserService.getCurrentEmail();
+        String role = currentUserService.getCurrentRole();
     }
 }
 ```
@@ -879,13 +873,13 @@ public void doSomething() {
 Use `@PreAuthorize` on service methods:
 
 ```java
-@PreAuthorize("hasRole('OWNER')")
-public void ownerOnlyMethod() { ... }
-
 @PreAuthorize("hasRole('ADMIN')")
 public void adminOnlyMethod() { ... }
 
-@PreAuthorize("hasAnyRole('OWNER', 'ADMIN')")
+@PreAuthorize("hasRole('USER')")
+public void userOnlyMethod() { ... }
+
+@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
 public void multiRoleMethod() { ... }
 ```
 
@@ -905,7 +899,7 @@ String encodedPassword = passwordEncoder.encode(password);
 
 ```java
 // In service or controller
-JWTUserPrincipal userPrincipal = jwtService.getCurrentUser();
+JwtUserPrincipal userPrincipal = jwtService.getCurrentUser();
 String accessToken = jwtService.generateAccessToken(userPrincipal);
 String refreshToken = jwtService.generateRefreshToken(userPrincipal);
 ```
@@ -914,7 +908,7 @@ String refreshToken = jwtService.generateRefreshToken(userPrincipal);
 
 ```java
 if (jwtService.isTokenValid(token)) {
-    JWTUserPrincipal principal = jwtService.extractUserPrincipal(token);
+    JwtUserPrincipal principal = jwtService.extractUserPrincipal(token);
 }
 ```
 
@@ -953,123 +947,210 @@ ResponseCookie cookie = ResponseCookie.from("access_token", "")
 Authentication authentication = authenticationManager.authenticate(
     new UsernamePasswordAuthenticationToken(email, password)
 );
-JWTUserPrincipal userPrincipal = (JWTUserPrincipal) authentication.getPrincipal();
+JwtUserPrincipal userPrincipal = (JwtUserPrincipal) authentication.getPrincipal();
 ```
 
 **Get current user in controller:**
 ```java
 @GetMapping("/me")
 public ResponseEntity<UserResponse> getCurrentUser(Authentication authentication) {
-    JWTUserPrincipal principal = (JWTUserPrincipal) authentication.getPrincipal();
+    JwtUserPrincipal principal = (JwtUserPrincipal) authentication.getPrincipal();
     return ResponseEntity.ok(userService.getUserResponse(principal));
 }
-```
-
-**Rate limiting annotation:**
-```java
-@RateLimit(
-    capacity = 5,
-    refillTokens = 1,
-    refillPeriod = 30,
-    refillUnit = ChronoUnit.SECONDS,
-    keyPrefix = "login"
-)
 ```
 
 ### 12.9 Important Reminders
 
 1. **Email is username** - The system uses email as the username identifier
-2. **Account active check** - `CustomUserDetailsService` throws `AccountNotActiveException` if inactive
-3. **Authorities are ROLE_ prefixed** - `ROLE_OWNER`, `ROLE_ADMIN`
+2. **Account active check** - `CustomUserDetailsService` throws exception if inactive
+3. **Authorities are ROLE_ prefixed** - `ROLE_USER`, `ROLE_ADMIN`
 4. **Stateless** - No server-side sessions, all state in JWT
 5. **Cookie-based tokens** - Tokens stored in HTTP-only cookies
 6. **Filter order matters** - JWT filter must be before `UsernamePasswordAuthenticationFilter`
 7. **Never return entities** - Always use DTOs for API responses
 8. **Use `@Valid`** - Always validate request DTOs
+9. **Library provides AuthAccount only** - Profile entities are your responsibility
 
 ---
 
-## 13. File Structure Reference
+## 13. Creating Custom Profile Entities
 
+This library provides authentication (`AuthAccount`). Application-specific profiles are your responsibility.
+
+### 13.1 Example: Creating a Customer Profile
+
+**Step 1: Create your profile entity**
+
+```java
+@Entity
+@Table(name = "customers")
+public class Customer {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "auth_account_id", nullable = false, unique = true)
+    private AuthAccount authAccount;
+
+    @Column(nullable = false)
+    private String firstName;
+
+    @Column(nullable = false)
+    private String lastName;
+
+    @Column(unique = true, nullable = false)
+    private String phoneNumber;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+
+    public String getFullName() {
+        return firstName + " " + lastName;
+    }
+
+    public String getEmail() {
+        return authAccount != null ? authAccount.getEmail() : null;
+    }
+}
 ```
-src/main/java/it/trinex/queuerbe/
+
+**Step 2: Create repository**
+
+```java
+public interface CustomerRepository extends JpaRepository<Customer, Long> {
+    Optional<Customer> findByAuthAccount_Email(String email);
+    Customer findByAuthAccount(AuthAccount authAccount);
+}
+```
+
+**Step 3: Access profile data in your services**
+
+```java
+@Service
+@RequiredArgsConstructor
+public class CustomerService {
+    private final CurrentUserService currentUserService;
+    private final CustomerRepository customerRepository;
+
+    public CustomerDto getCurrentCustomerProfile() {
+        Long authAccountId = currentUserService.getCurrentAuthAccountId();
+        AuthAccount authAccount = authAccountRepository.findById(authAccountId)
+            .orElseThrow();
+
+        Customer customer = customerRepository.findByAuthAccount(authAccount);
+        return mapToDto(customer);
+    }
+}
+```
+
+**Step 4: Or extend CustomUserDetailsService to load profile**
+
+```java
+@Service
+@RequiredArgsConstructor
+public class CustomUserDetailsService implements UserDetailsService {
+
+    private final AuthAccountRepository authAccountRepository;
+    private final CustomerRepository customerRepository;
+
+    @Override
+    public UserDetails loadUserByUsername(String email) {
+        AuthAccount authAccount = authAccountRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        if (!authAccount.getIsActive()) {
+            throw new AuthenticationException("Account is not active");
+        }
+
+        // Create principal with auth data only
+        // Profile data is accessed separately via repository
+        return JwtUserPrincipal.create(authAccount);
+    }
+}
+```
+
+### 13.2 Key Architecture Points
+
+1. **Separation of Concerns:**
+   - `AuthAccount` = Authentication (library provides)
+   - `Customer/Owner/Employee` = Profile data (you create)
+
+2. **Relationship:**
+   - Your profile entity has `@OneToOne` with `AuthAccount`
+   - `AuthAccount` does NOT reference your profile
+
+3. **Access Pattern:**
+   - JWT contains only auth data (id, email, role)
+   - Use auth account id to fetch your profile entity when needed
+
+4. **Benefits:**
+   - Library stays simple and focused
+   - You control your profile schema
+   - Multiple profile types can coexist (Customer, Vendor, etc.)
+
+---
+
+## 14. File Structure Reference
+
+**Library files (provided):**
+```
+src/main/java/it/trinex/nnh/
 ├── config/
-│   ├── JwtProperties.java              # JWT configuration properties
-│   └── SecurityConfig.java             # Spring Security configuration
+│   ├── SecurityProperties.java       # Configuration properties
+│   ├── JwtSecurityConfiguration.java  # Security config
+│   └── SecurityAutoConfiguration.java # Auto-config
 ├── controller/
-│   └── AuthenticationController.java   # Auth endpoints
+│   └── AuthController.java            # Auth endpoints
 ├── dto/
 │   ├── request/
-│   │   └── LoginRequestDTO.java        # Login request DTO
+│   │   └── LoginRequest.java
 │   └── response/
-│       ├── AuthResponseDTO.java        # Auth response DTO
-│       └── AuthStatusResponseDTO.java  # Auth status DTO
+│       └── AuthResponse.java
 ├── exception/
-│   ├── ApiException.java               # Base exception
-│   ├── AccountNotActiveException.java  # Account inactive exception
-│   ├── InvalidTokenException.java      # Invalid token exception
-│   └── ApiExceptionHandler.java        # Global exception handler
+│   ├── AuthenticationException.java
+│   ├── TokenExpiredException.java
+│   ├── UserNotFoundException.java
+│   └── GlobalExceptionHandler.java
 ├── model/
-│   ├── AuthAccount.java                # Authentication entity
-│   ├── AuthAccountType.java            # Account type enum
-│   └── Owner.java                      # Owner profile entity
+│   ├── AuthAccount.java               # Core auth entity (ONLY)
+│   └── AuthAccountType.java           # Account type enum
 ├── repository/
-│   ├── AuthAccountRepository.java      # Auth account repo
-│   └── OwnerRepository.java            # Owner repo
+│   └── AuthAccountRepository.java     # Core auth repository (ONLY)
 ├── security/
-│   ├── JwtAuthenticationFilter.java    # JWT filter
-│   └── JWTUserPrincipal.java           # User principal
+│   ├── CustomUserDetailsService.java  # Extension point
+│   ├── InMemoryUserDetailsService.java
+│   └── jwt/
+│       ├── JwtService.java
+│       ├── JwtProperties.java
+│       ├── JwtAuthenticationFilter.java
+│       └── JwtUserPrincipal.java      # Core principal (basic properties)
 └── service/
-    ├── CurrentUserService.java         # Current user access
-    ├── CustomUserDetailsService.java   # User details service
-    ├── JWTService.java                 # JWT operations
-    └── OrganizationService.java        # Organization service (used by JWT)
+    ├── AuthenticationService.java
+    ├── AuthenticationServiceImpl.java
+    └── CurrentUserService.java
 ```
 
----
-
-## 14. Creating a Maven Package
-
-To create a reusable Maven package from this auth system:
-
-1. **Extract the following components:**
-   - `config/SecurityConfig.java`
-   - `config/JwtProperties.java`
-   - `security/JwtAuthenticationFilter.java`
-   - `security/JWTUserPrincipal.java`
-   - `service/JWTService.java`
-   - `service/CustomUserDetailsService.java`
-   - `service/CurrentUserService.java`
-   - `exception/ApiException.java`
-   - `exception/InvalidTokenException.java`
-   - `exception/AccountNotActiveException.java`
-   - `exception/ApiExceptionHandler.java`
-   - `model/AuthAccount.java`
-   - `model/AuthAccountType.java`
-   - `controller/AuthenticationController.java`
-   - All DTOs in `dto/request/` and `dto/response/`
-   - Repository interfaces
-
-2. **Make entities abstract or configurable:**
-   - Keep `AuthAccount` as base entity
-   - Make `Owner` an example profile entity
-   - Allow custom profile entities to extend the pattern
-
-3. **Configuration requirements:**
-   - JWT secret key (Base64-encoded)
-   - Token expiration times per role
-   - CORS origins
-   - Database connection
-   - Redis connection (for token revocation)
-
-4. **Required dependencies:**
-   - See section 10.1
-
-5. **Expose extension points:**
-   - Custom `UserDetailsService` implementation
-   - Custom profile entities
-   - Custom authorities/granted authorities
-   - Custom token claims
+**Application-specific files (you create):**
+```
+src/main/java/your/application/
+├── model/
+│   ├── Customer.java       # Your profile entity
+│   ├── Vendor.java         # Your profile entity
+│   └── Employee.java       # Your profile entity
+├── repository/
+│   ├── CustomerRepository.java
+│   ├── VendorRepository.java
+│   └── EmployeeRepository.java
+└── service/
+    ├── CustomerService.java
+    └── VendorService.java
+```
 
 ---
 

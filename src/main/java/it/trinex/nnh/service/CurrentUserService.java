@@ -4,8 +4,6 @@ import it.trinex.nnh.security.jwt.JwtService;
 import it.trinex.nnh.security.jwt.JwtUserPrincipal;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.Optional;
-
 /**
  * Service layer access to the current authenticated user.
  *
@@ -13,7 +11,7 @@ import java.util.Optional;
  * from the SecurityContext. It should be used instead of directly accessing SecurityContextHolder
  * in service layer code.</p>
  *
- * <p><b>Important:</b> Do NOT pass userId or ownerId as parameters when referring to the
+ * <p><b>Important:</b> Do NOT pass authAccountId as parameters when referring to the
  * currently logged-in user. Always use this service instead.</p>
  *
  * <p>Example usage:</p>
@@ -25,7 +23,8 @@ import java.util.Optional;
  *
  *     public void doSomething() {
  *         Long authAccountId = currentUserService.getCurrentAuthAccountId();
- *         Optional&lt;Long&gt; ownerId = currentUserService.getCurrentOwnerId();
+ *         String email = currentUserService.getCurrentEmail();
+ *         String role = currentUserService.getCurrentRole();
  *     }
  * }
  * </pre>
@@ -53,17 +52,7 @@ public class CurrentUserService {
      * @throws IllegalStateException if no authenticated user found
      */
     public Long getCurrentAuthAccountId() {
-        return getJwtService().getCurrentUser().getId();
-    }
-
-    /**
-     * Get the current user's owner ID (if applicable).
-     *
-     * @return optional owner ID
-     * @throws IllegalStateException if no authenticated user found
-     */
-    public Optional<Long> getCurrentOwnerId() {
-        return getJwtService().getCurrentUser().getOwnerId();
+        return getJwtService().getCurrentUserId();
     }
 
     /**
@@ -83,7 +72,7 @@ public class CurrentUserService {
      * @throws IllegalStateException if no authenticated user found
      */
     public String getCurrentEmail() {
-        return getJwtService().getCurrentUser().getUsername();
+        return getJwtService().getCurrentEmail();
     }
 
     /**
@@ -93,27 +82,7 @@ public class CurrentUserService {
      * @throws IllegalStateException if no authenticated user found
      */
     public String getCurrentRole() {
-        return getJwtService().getCurrentUser().getRole();
-    }
-
-    /**
-     * Get the current user's first name.
-     *
-     * @return the first name
-     * @throws IllegalStateException if no authenticated user found
-     */
-    public String getCurrentFirstName() {
-        return getJwtService().getCurrentUser().getFirstName();
-    }
-
-    /**
-     * Get the current user's last name.
-     *
-     * @return the last name
-     * @throws IllegalStateException if no authenticated user found
-     */
-    public String getCurrentLastName() {
-        return getJwtService().getCurrentUser().getLastName();
+        return getJwtService().getCurrentRole();
     }
 
     /**

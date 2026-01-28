@@ -12,12 +12,13 @@ import java.time.LocalDateTime;
  * Base authentication account entity.
  *
  * <p>This entity represents a user's authentication credentials and account status.
- * It can be extended with profile-specific entities like {@link Owner}.</p>
+ * Application developers can create profile-specific entities (e.g., Customer, Employee)
+ * that have a one-to-one relationship with AuthAccount.</p>
  *
  * <p>Key features:</p>
  * <ul>
  *   <li>Unique email constraint</li>
- *   <li>Account type (OWNER, ADMIN)</li>
+ *   <li>Account type (USER, ADMIN, or custom types)</li>
  *   <li>Active status for account activation/deactivation</li>
  *   <li>Audit timestamps</li>
  * </ul>

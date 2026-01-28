@@ -81,9 +81,6 @@ public class JwtService {
                 .id(UUID.randomUUID().toString())
                 .claim("uid", userPrincipal.getId())
                 .claim("role", userPrincipal.getRole())
-                .claim("ownerId", userPrincipal.getOwnerId().orElse(null))
-                .claim("firstName", userPrincipal.getFirstName())
-                .claim("lastName", userPrincipal.getLastName())
                 .claim("tokenType", tokenType)
                 .issuedAt(now)
                 .expiration(expiryDate)
@@ -263,15 +260,5 @@ public class JwtService {
      */
     public String getCurrentRole() {
         return getCurrentUser().getRole();
-    }
-
-    /**
-     * Get the currently authenticated user's owner ID (if applicable).
-     *
-     * @return optional owner ID
-     * @throws IllegalStateException if no authenticated user found
-     */
-    public java.util.Optional<Long> getCurrentOwnerId() {
-        return getCurrentUser().getOwnerId();
     }
 }
