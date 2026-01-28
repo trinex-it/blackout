@@ -3,6 +3,7 @@ package it.trinex.nnh.config;
 import it.trinex.nnh.security.jwt.JwtAuthenticationFilter;
 import it.trinex.nnh.security.jwt.JwtService;
 import it.trinex.nnh.security.jwt.JwtProperties;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -50,6 +51,7 @@ public class JwtSecurityConfiguration {
 
     /**
      * Create JwtAuthenticationFilter bean if not already provided.
+     * Only created if UserDetailsService is available.
      *
      * @param jwtService the JWT service
      * @param userDetailsService the user details service
@@ -57,6 +59,7 @@ public class JwtSecurityConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(JwtAuthenticationFilter.class)
+    @ConditionalOnBean(UserDetailsService.class)
     public JwtAuthenticationFilter jwtAuthenticationFilter(
             JwtService jwtService,
             UserDetailsService userDetailsService

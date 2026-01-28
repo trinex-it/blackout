@@ -1,11 +1,16 @@
 package it.trinex.nnh.controller;
 
 import it.trinex.nnh.dto.request.LoginRequest;
+import it.trinex.nnh.dto.request.SignupRequest;
 import it.trinex.nnh.dto.response.AuthResponse;
+import it.trinex.nnh.dto.response.SignupResponse;
 import it.trinex.nnh.dto.response.UserDto;
+import it.trinex.nnh.model.AuthAccount;
+import it.trinex.nnh.model.AuthAccountType;
 import it.trinex.nnh.security.jwt.JwtService;
 import it.trinex.nnh.security.jwt.JwtUserPrincipal;
 import it.trinex.nnh.service.AuthenticationService;
+import it.trinex.nnh.service.UserService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -25,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
  *
  * <p>This controller provides authentication endpoints:</p>
  * <ul>
+ *   <li>POST /api/auth/signup - Create a new user account</li>
  *   <li>POST /api/auth/login - Login with email and password</li>
  *   <li>POST /api/auth/refresh - Refresh access token using refresh token cookie</li>
  *   <li>POST /api/auth/logout - Logout by clearing cookies</li>
@@ -45,6 +51,68 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final AuthenticationService authenticationService;
+    private final UserService userService;
+
+    /**
+     * Signup endpoint.
+     *
+     * <p>Creates a new user account, generates JWT tokens, and sets them as HTTP-only cookies.
+     * The user is automatically logged in after signup.</p>
+     *
+     * @param request the signup request
+     * @param response the HTTP response
+     * @return signup response with user info (tokens are in cookies)
+     */
+    @PostMapping("/signup")
+    public ResponseEntity<SignupResponse> signup(
+            @Valid @RequestBody SignupRequest request,
+            HttpServletResponse response
+    ) {
+        // Determine account type
+        AuthAccountType accountType = AuthAccountType.USER;
+        if (request.getAccountType() != null && !request.getAccountType().isEmpty()) {
+            try {
+                accountType = AuthAccountType.valueOf(request.getAccountType().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // Default to USER if invalid type
+                accountType = AuthAccountType.USER;
+            }
+        }
+
+        // Create user
+        AuthAccount authAccount = userService.createUser(
+                request.getEmail(),
+                request.getPassword(),
+                accountType
+        );
+
+        // Create user principal
+        JwtUserPrincipal userPrincipal = JwtUserPrincipal.create(authAccount);
+
+        // Generate tokens
+        String accessToken = jwtService.generateAccessToken(userPrincipal);
+        String refreshToken = jwtService.generateRefreshToken(userPrincipal);
+
+        // Get access token expiration
+        long accessExpiration = jwtService.extractExpiration(accessToken).getTime() - System.currentTimeMillis();
+
+        // Build response
+        SignupResponse signupResponse = SignupResponse.builder()
+                .userId(authAccount.getId())
+                .email(authAccount.getEmail())
+                .role(authAccount.getType().name())
+                .expiresIn(accessExpiration)
+                .message("User created successfully")
+                .build();
+
+        // Set cookies
+        response.addHeader(HttpHeaders.SET_COOKIE,
+                createAccessTokenCookie(accessToken, accessExpiration).toString());
+        response.addHeader(HttpHeaders.SET_COOKIE,
+                createRefreshTokenCookie(refreshToken, false).toString());
+
+        return ResponseEntity.status(201).body(signupResponse);
+    }
 
     /**
      * Login endpoint.

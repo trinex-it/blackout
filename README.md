@@ -40,9 +40,15 @@ That's it! The library will automatically configure authentication with sensible
 ### 3. Test It
 
 ```bash
+# Create a new user
+curl -X POST http://localhost:8080/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"SecurePassword123!"}'
+
+# Login with the created user
 curl -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"password"}'
+  -d '{"email":"test@example.com","password":"SecurePassword123!"}'
 ```
 
 ## Configuration
@@ -188,40 +194,43 @@ nnh:
 The library will create these tables:
 
 - `auth_accounts` - Authentication credentials
-- `owners` - Owner profiles
 
-#### Create Users Programmatically
+**Note:** The `Owner` entity has been removed. Applications should create their own profile entities with a one-to-one relationship to `AuthAccount`.
+
+#### Create Users
+
+**Option A: Using the Signup API Endpoint (Recommended)**
+
+```bash
+curl -X POST http://localhost:8080/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "SecurePassword123!",
+    "accountType": "USER"
+  }'
+```
+
+The user is automatically logged in and receives JWT cookies.
+
+**Option B: Programmatically (for initial admin user)**
 
 ```java
 @Component
 public class DataInitializer implements ApplicationRunner {
 
-    private final AuthAccountRepository authAccountRepository;
-    private final OwnerRepository ownerRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final UserService userService;
 
     @Override
     public void run(ApplicationArguments args) {
-        // Create auth account
-        AuthAccount authAccount = AuthAccount.builder()
-            .email("user@example.com")
-            .passwordHash(passwordEncoder.encode("SecurePassword123!"))
-            .type(AuthAccountType.OWNER)
-            .isActive(true)
-            .build();
-
-        authAccount = authAccountRepository.save(authAccount);
-
-        // Create owner profile
-        Owner owner = Owner.builder()
-            .authAccount(authAccount)
-            .firstName("Mario")
-            .lastName("Rossi")
-            .fiscalCode("RSSMRA80A01H501U")
-            .phoneNumber("+39123456789")
-            .build();
-
-        ownerRepository.save(owner);
+        // Create initial admin user
+        if (!userService.userExists("admin@example.com")) {
+            userService.createUser(
+                "admin@example.com",
+                "AdminPassword123!",
+                AuthAccountType.ADMIN
+            );
+        }
     }
 }
 ```
@@ -238,7 +247,7 @@ spring:
 ```
 
 Default test users:
-- `test@example.com` / `password` (OWNER role)
+- `test@example.com` / `password` (USER role)
 - `admin@example.com` / `password` (ADMIN role)
 
 ### Option 3: Custom UserDetailsService
@@ -274,6 +283,45 @@ public class MyCustomUserDetailsService implements UserDetailsService {
 ## API Endpoints
 
 When `expose-controller: true` (default), the following endpoints are available:
+
+### POST /api/auth/signup
+
+Create a new user account. The user is automatically logged in after signup.
+
+**Request:**
+```json
+{
+  "email": "user@example.com",
+  "password": "SecurePassword123!",
+  "accountType": "USER"
+}
+```
+
+**Fields:**
+- `email` (required): User's email address
+- `password` (required): Password (min 8 characters)
+- `accountType` (optional): Account type (USER, ADMIN, or custom). Defaults to USER
+
+**Response (201 Created):**
+```json
+{
+  "userId": 1,
+  "email": "user@example.com",
+  "role": "USER",
+  "expiresIn": 900000,
+  "message": "User created successfully"
+}
+```
+
+**Cookies Set:**
+```
+Set-Cookie: access_token=...; HttpOnly; Secure; SameSite=None; Path=/
+Set-Cookie: refresh_token=...; HttpOnly; Secure; SameSite=None; Path=/
+```
+
+**Error Responses:**
+- `409 Conflict` - User already exists
+- `400 Bad Request` - Validation error
 
 ### POST /api/auth/login
 
