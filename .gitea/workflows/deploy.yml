@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - develop
+      - dev
 
 jobs:
   deploy:
@@ -31,7 +31,7 @@ jobs:
           server-password: MAVEN_PASSWORD
 
       - name: Modify version for develop branch
-        if: github.ref == 'refs/heads/develop'
+        if: github.ref == 'refs/heads/dev'
         run: |
           VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           echo "Current version: $VERSION"
@@ -45,5 +45,5 @@ jobs:
           MAVEN_PASSWORD: Andy4633.1154/sb
 
       - name: Revert version changes
-        if: github.ref == 'refs/heads/develop'
+        if: github.ref == 'refs/heads/dev'
         run: mvn versions:revert
