@@ -35,9 +35,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .userId(userPrincipal.getId())
                 .email(userPrincipal.getUsername())
                 .role(userPrincipal.getRole())
-                .ownerId(userPrincipal.getOwnerId())
-                .firstName(userPrincipal.getFirstName())
-                .lastName(userPrincipal.getLastName())
                 .expiresIn(accessExpiration)
                 .build();
     }
@@ -76,9 +73,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .userId(userPrincipal.getId())
                 .email(userPrincipal.getUsername())
                 .role(userPrincipal.getRole())
-                .ownerId(userPrincipal.getOwnerId())
-                .firstName(userPrincipal.getFirstName())
-                .lastName(userPrincipal.getLastName())
                 .expiresIn(accessExpiration)
                 .build();
     }

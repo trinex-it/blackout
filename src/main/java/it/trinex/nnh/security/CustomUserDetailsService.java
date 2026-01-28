@@ -2,10 +2,7 @@ package it.trinex.nnh.security;
 
 import it.trinex.nnh.exception.AuthenticationException;
 import it.trinex.nnh.model.AuthAccount;
-import it.trinex.nnh.model.AuthAccountType;
-import it.trinex.nnh.model.Owner;
 import it.trinex.nnh.repository.AuthAccountRepository;
-import it.trinex.nnh.repository.OwnerRepository;
 import it.trinex.nnh.security.jwt.JwtUserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -16,8 +13,6 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
-
 /**
  * Custom UserDetailsService that loads users from JPA repositories.
  *
@@ -25,11 +20,14 @@ import java.util.Optional;
  * <ul>
  *   <li>Loads users by email (not username!)</li>
  *   <li>Checks account active status</li>
- *   <li>Loads associated Owner profile for OWNER type accounts</li>
  *   <li>Creates JwtUserPrincipal with authorities</li>
  * </ul>
  *
  * <p><b>Note:</b> Although the method is {@code loadUserByUsername}, it actually loads by <b>email</b>.</p>
+ *
+ * <p><b>Extension:</b> Developers can extend this service to load custom profile entities.
+ * Profile-specific data (firstName, lastName, etc.) should be fetched separately using
+ * the auth account id.</p>
  *
  * <p>This service is conditionally loaded when:</p>
  * <ul>
@@ -39,14 +37,13 @@ import java.util.Optional;
  * </ul>
  */
 @Service
-@ConditionalOnBean({AuthAccountRepository.class, OwnerRepository.class})
+@ConditionalOnBean(AuthAccountRepository.class)
 @ConditionalOnMissingBean(UserDetailsService.class)
 @ConditionalOnProperty(prefix = "nnh.security", name = "use-jpa", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
     private final AuthAccountRepository authAccountRepository;
-    private final OwnerRepository ownerRepository;
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
@@ -59,13 +56,8 @@ public class CustomUserDetailsService implements UserDetailsService {
             throw new AuthenticationException("Account is not active");
         }
 
-        // Load owner profile for OWNER type accounts
-        Optional<Owner> owner = Optional.empty();
-        if (authAccount.getType() == AuthAccountType.OWNER) {
-            owner = ownerRepository.findByAuthAccount(authAccount);
-        }
-
         // Create and return JwtUserPrincipal
-        return JwtUserPrincipal.create(authAccount, owner);
+        // Profile-specific data should be loaded separately by the application
+        return JwtUserPrincipal.create(authAccount);
     }
 }
