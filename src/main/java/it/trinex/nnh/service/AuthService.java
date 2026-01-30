@@ -3,6 +3,7 @@ package it.trinex.nnh.service;
 import it.trinex.nnh.controller.AuthResponseDTO;
 import it.trinex.nnh.model.NNHUserPrincipal;
 import it.trinex.nnh.properties.CorsProperties;
+import it.trinex.nnh.properties.JwtProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,11 +20,9 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class AuthService {
 
-    @Value("${nnh.jwt.default-refresh-expiration-no-remember:3600000}")
-    private long defaultRefreshExpirationNoRemember;
-
     private final AuthenticationManager authenticationManager;
     private final JWTService jwtService;
+    private final JwtProperties jwtProperties;
     public AuthResponseDTO login(String subject, String password, Boolean rememberMe) {
         log.info("Login attempt for user: '{}' ", subject);
 
@@ -49,13 +48,13 @@ public class AuthService {
         log.info("User '{}' logged in successfully", subject);
 
         // Determine if we should set the refresh token
-        long refreshTokenMaxAge = rememberMe ? Duration.ofMillis(refreshTokenExpirationMs).toSeconds() : defaultRefreshExpirationNoRemember;
+        long refreshTokenMaxAge = rememberMe ? Duration.ofMillis(refreshTokenExpirationMs).toSeconds() : jwtProperties.getDefaultRefreshExpirationNoRemember();
 
         return AuthResponseDTO.builder()
             .access_token(accessToken)
             .refresh_token(refreshToken)
             .access_token_expiration(accessTokenExpirationMs)
-            .access_token_expiration(refreshTokenExpirationMs)
+            .refresh_token_expiration(refreshTokenMaxAge)
             .build();
     }
 }

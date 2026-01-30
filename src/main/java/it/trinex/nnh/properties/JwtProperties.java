@@ -24,4 +24,6 @@ public class JwtProperties {
      * Default: 30 days (2592000000 ms)
      */
     private Long refreshTokenExp = 2592000000L;
+
+    private Long defaultRefreshExpirationNoRemember = 3600000L;
 }
