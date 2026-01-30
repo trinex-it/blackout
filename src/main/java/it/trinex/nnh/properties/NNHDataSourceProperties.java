@@ -14,4 +14,18 @@ public class NNHDataSourceProperties {
     private String password;
 
     private String driverClassName;
+
+    // JPA Properties
+    private JpaProperties jpa = new JpaProperties();
+
+    @Data
+    public static class JpaProperties {
+        private HibernateProperties hibernate = new HibernateProperties();
+
+        @Data
+        public static class HibernateProperties {
+            private String ddlAuto = "update";
+            private String dialect;
+        }
+    }
 }

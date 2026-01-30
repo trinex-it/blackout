@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.7</version>
+        <version>4.0.2</version>
         <relativePath/>
     </parent>
 
@@ -96,11 +96,10 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Optional: JPA (for default entities - users can exclude) -->
+        <!-- JPA (for default entities) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
-            <optional>true</optional>
         </dependency>
     </dependencies>
 
