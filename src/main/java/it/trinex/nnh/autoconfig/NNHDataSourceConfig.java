@@ -1,4 +1,4 @@
-package it.trinex.nnh.config;
+package it.trinex.nnh.autoconfig;
 
 import jakarta.persistence.EntityManagerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -19,11 +19,11 @@ import javax.sql.DataSource;
 
 @Configuration
 @EnableJpaRepositories(
-    basePackages = "${nnh.jpa.repository-package}",
+    basePackages = "it.trinex.nnh",
     entityManagerFactoryRef = "nnhEntityManager",
     transactionManagerRef = "nnhTransactionManager"
 )
-@EntityScan("${nnh.jpa.model-package}")
+@EntityScan("it.trinex.nnh.model")
 public class NNHDataSourceConfig {
     @Bean
     @ConditionalOnMissingBean(name = "nnhDataSource")
