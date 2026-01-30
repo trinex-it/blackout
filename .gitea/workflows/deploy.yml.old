@@ -1,0 +1,49 @@
+name: Deploy Maven Package
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  deploy:
+    runs-on: main
+    container: maven:3.9.12-eclipse-temurin-25-noble
+
+    steps:
+
+      - name: Install Node.js (required for actions)
+        run: |
+          apt-get update
+          apt-get install -y nodejs
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          server-id: gitea
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+
+      - name: Modify version for develop branch
+        if: github.ref == 'refs/heads/dev'
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "Current version: $VERSION"
+          mvn versions:set -DnewVersion=${VERSION}-SNAPSHOT
+          echo "Modified version to: ${VERSION}-SNAPSHOT"
+
+      - name: Deploy to Gitea Package Registry
+        run: mvn deploy
+        env:
+          MAVEN_USERNAME: andrew
+          MAVEN_PASSWORD: Andy4633.1154/sb
+
+      - name: Revert version changes
+        if: github.ref == 'refs/heads/dev'
+        run: mvn versions:revert
