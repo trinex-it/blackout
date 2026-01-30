@@ -10,7 +10,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 @AutoConfiguration
 public class JwtConfig {
     @Bean
-    @ConditionalOnMissingBean(NNHPrincipalFactory.class)
+    @ConditionalOnMissingBean
     public NNHPrincipalFactory<UserDetails> defaultPrincipalFactory() {
         return (claims, authorities) ->
                 NNHUserPrincipal.builder()

@@ -1,34 +1,24 @@
 package it.trinex.nnh.properties;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Setter
+@Getter
 @Component
 @ConfigurationProperties(prefix = "nnh.cors")
 public class CorsProperties {
 
-    private List<String> allowedOrigins = new ArrayList<>();
-    private List<String> allowedMethods = new ArrayList<>();
-    private List<String> allowedHeaders = new ArrayList<>();
+    // getter & setter
+    private List<String> allowedOrigins = List.of("*");
+    private List<String> allowedMethods = List.of("*");
+    private List<String> allowedHeaders = List.of("*");
     private boolean allowCredentials = true;
     private long maxAge = 3600;
 
-    // getter & setter
-    public List<String> getAllowedOrigins() { return allowedOrigins; }
-    public void setAllowedOrigins(List<String> allowedOrigins) { this.allowedOrigins = allowedOrigins; }
-
-    public List<String> getAllowedMethods() { return allowedMethods; }
-    public void setAllowedMethods(List<String> allowedMethods) { this.allowedMethods = allowedMethods; }
-
-    public List<String> getAllowedHeaders() { return allowedHeaders; }
-    public void setAllowedHeaders(List<String> allowedHeaders) { this.allowedHeaders = allowedHeaders; }
-
-    public boolean isAllowCredentials() { return allowCredentials; }
-    public void setAllowCredentials(boolean allowCredentials) { this.allowCredentials = allowCredentials; }
-
-    public long getMaxAge() { return maxAge; }
-    public void setMaxAge(long maxAge) { this.maxAge = maxAge; }
 }
