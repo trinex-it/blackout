@@ -1,9 +1,11 @@
 package it.trinex.nnh.service;
 
 import it.trinex.nnh.controller.AuthResponseDTO;
+import it.trinex.nnh.model.NNHUserPrincipal;
 import it.trinex.nnh.properties.CorsProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -17,9 +19,12 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class AuthService {
 
+    @Value("${nnh.jwt.default-refresh-expiration-no-remember:3600000}")
+    private long defaultRefreshExpirationNoRemember;
+
     private final AuthenticationManager authenticationManager;
     private final JWTService jwtService;
-    public AuthResponseDTO login(String subject, String password) {
+    public AuthResponseDTO login(String subject, String password, Boolean rememberMe) {
         log.info("Login attempt for user: '{}' ", subject);
 
         // Authenticate user with Spring Security
@@ -29,34 +34,28 @@ public class AuthService {
                         password));
 
         // Extract authenticated user principal
-        JWTUserPrincipal userPrincipal = (JWTUserPrincipal) authentication.getPrincipal();
+        NNHUserPrincipal userPrincipal = (NNHUserPrincipal) authentication.getPrincipal();
 
         // Generate tokens
         String accessToken = jwtService.generateAccessToken(userPrincipal);
         String refreshToken = jwtService.generateRefreshToken(userPrincipal);
 
         // Calculate expiration time for client
-        AuthAccountType role = jwtService.extractRole(accessToken);
-        long accessTokenExpirationMs = jwtService.calculateAccessTokenExpiration(role).toEpochMilli()
+        long accessTokenExpirationMs = jwtService.calculateAccessTokenExpiration().toEpochMilli()
                 - System.currentTimeMillis();
-        long refreshTokenExpirationMs = jwtService.calculateRefreshTokenExpiration(role).toEpochMilli()
+        long refreshTokenExpirationMs = jwtService.calculateRefreshTokenExpiration().toEpochMilli()
                 - System.currentTimeMillis();
 
         log.info("User '{}' logged in successfully", subject);
 
         // Determine if we should set the refresh token
-        boolean rememberMe = Boolean.TRUE.equals(loginRequestDTO.getRememberMe());
-        long refreshTokenMaxAge = rememberMe ? Duration.ofMillis(refreshTokenExpirationMs).toSeconds() : 0;
+        long refreshTokenMaxAge = rememberMe ? Duration.ofMillis(refreshTokenExpirationMs).toSeconds() : defaultRefreshExpirationNoRemember;
 
-        ResponseCookie refreshCookie = ResponseCookie.from("refresh_token", refreshToken)
-                .httpOnly(true)
-                .secure(true)
-                .path("/")
-                .maxAge(refreshTokenMaxAge)
-                .sameSite("None")
-                .build();
-
-        AuthResponseDTO response = new AuthResponseDTO(accessTokenExpirationMs);
-
+        return AuthResponseDTO.builder()
+            .access_token(accessToken)
+            .refresh_token(refreshToken)
+            .access_token_expiration(accessTokenExpirationMs)
+            .access_token_expiration(refreshTokenExpirationMs)
+            .build();
     }
 }
