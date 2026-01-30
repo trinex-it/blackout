@@ -8,18 +8,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import it.trinex.queuerbe.annotation.RateLimit;
-import it.trinex.queuerbe.dto.request.LoginRequestDTO;
-import it.trinex.queuerbe.dto.request.OwnerSignUpRequestDTO;
-import it.trinex.queuerbe.dto.response.AuthResponseDTO;
-import it.trinex.queuerbe.dto.response.AuthStatusResponseDTO;
-import it.trinex.queuerbe.dto.response.ErrorResponse;
-import it.trinex.queuerbe.dto.response.OwnerSignUpResponseDTO;
-import it.trinex.queuerbe.exception.InvalidTokenException;
-import it.trinex.queuerbe.model.AuthAccountType;
-import it.trinex.queuerbe.security.JWTUserPrincipal;
-import it.trinex.queuerbe.service.JWTService;
-import it.trinex.queuerbe.service.OwnerService;
+import it.trinex.nnh.service.JWTService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +34,6 @@ public class AuthenticationController {
 
   private final AuthenticationManager authenticationManager;
   private final JWTService jwtService;
-  private final OwnerService ownerService;
 
   /**
    * Owner Sign Up endpoint. Creates an inactive OWNER account and profile.
@@ -66,9 +55,8 @@ public class AuthenticationController {
       @ApiResponse(responseCode = "409", description = "Conflict (email, fiscal code, or phone already used)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
   })
   @SecurityRequirements
-  @RateLimit(capacity = 5, refillTokens = 1, refillPeriod = 60, refillUnit = ChronoUnit.SECONDS, keyPrefix = "signup-owner")
   @PostMapping("/signup")
-  public ResponseEntity<OwnerSignUpResponseDTO> signUpOwner(@Valid @RequestBody OwnerSignUpRequestDTO request) {
+  public ResponseEntity<> signUpOwner(@Valid @RequestBody OwnerSignUpRequestDTO request) {
     OwnerSignUpResponseDTO response = ownerService.signUpOwner(request);
     return ResponseEntity.status(201).body(response);
   }
@@ -123,7 +111,6 @@ public class AuthenticationController {
           """)))
   })
   @SecurityRequirements
-  @RateLimit(capacity = 5, refillTokens = 1, refillPeriod = 30, refillUnit = ChronoUnit.SECONDS, keyPrefix = "login")
   @PostMapping("/login")
   public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO loginRequestDTO) {
     log.info("Login attempt for user: {}", loginRequestDTO.getEmail());
@@ -225,7 +212,6 @@ public class AuthenticationController {
       @ApiResponse(responseCode = "429", description = "Rate limit exceeded", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
   })
   @SecurityRequirements
-  @RateLimit(capacity = 10, refillTokens = 10, refillPeriod = 60, refillUnit = ChronoUnit.SECONDS, keyPrefix = "refresh")
   @PostMapping("/refresh")
   public ResponseEntity<AuthResponseDTO> refresh(@CookieValue(name = "refresh_token") String refreshToken) {
 

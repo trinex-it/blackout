@@ -11,15 +11,20 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-public abstract class AuthAccount {
+public abstract class AuthAccount implements UserDetails {
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Id
     private Long id;
@@ -30,6 +35,8 @@ public abstract class AuthAccount {
     private String subject;
     @Column(nullable = false)
     private String passwordHash;
+    @Column(nullable = false)
+    private boolean isActive;
 
     // TODO: 2FA
     //private String totpSecret;
@@ -53,4 +60,22 @@ public abstract class AuthAccount {
     public void setDeleted() {
         deletedAt = Instant.now();
     }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(
+                new SimpleGrantedAuthority("ROLE_" + role),
+                new SimpleGrantedAuthority(role));
+    }
+
+    @Override
+    public String getPassword() {
+        return passwordHash;
+    }
+
+    @Override
+    public String getUsername() {
+        return subject;
+    }
+
 }

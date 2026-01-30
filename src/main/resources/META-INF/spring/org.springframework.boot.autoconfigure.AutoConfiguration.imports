@@ -1,0 +1,6 @@
+it.trinex.nnh.config.SecurityConfig
+it.trinex.nnh.security.JwtAuthenticationFilter
+it.trinex.nnh.service.JWTService
+it.trinex.nnh.service.CustomUserDetailsService
+it.trinex.nnh.properties.CorsProperties
+it.trinex.nnh.AuthAccountRepository

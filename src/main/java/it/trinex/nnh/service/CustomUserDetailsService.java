@@ -1,12 +1,7 @@
 package it.trinex.nnh.service;
 
-import it.trinex.queuerbe.exception.AccountNotActiveException;
-import it.trinex.queuerbe.model.AuthAccount;
-import it.trinex.queuerbe.model.AuthAccountType;
-import it.trinex.queuerbe.model.Owner;
-import it.trinex.queuerbe.repository.AuthAccountRepository;
-import it.trinex.queuerbe.repository.OwnerRepository;
-import it.trinex.queuerbe.security.JWTUserPrincipal;
+import it.trinex.nnh.AuthAccountRepository;
+import it.trinex.nnh.model.AuthAccount;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -20,13 +15,11 @@ import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
+@Service
 public class CustomUserDetailsService implements UserDetailsService {
 
         private final AuthAccountRepository authAccountRepository;
-        private final OwnerRepository ownerRepository;
-
         /*
          * overriding but we are actually loading by EMAIL, not username!
          */
