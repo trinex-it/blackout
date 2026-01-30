@@ -1,11 +1,12 @@
 package it.trinex.nnh.service;
 
+import it.trinex.nnh.AuthAccountRepo;
 import it.trinex.nnh.controller.AuthResponseDTO;
-import it.trinex.nnh.model.AuthAccount;
 import it.trinex.nnh.controller.AuthStatusResponseDTO;
 import it.trinex.nnh.exception.InvalidTokenException;
+import it.trinex.nnh.exception.UnauthorizedException;
+import it.trinex.nnh.model.AuthAccount;
 import it.trinex.nnh.model.NNHUserPrincipal;
-import it.trinex.nnh.properties.CorsProperties;
 import it.trinex.nnh.properties.JwtProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +19,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.Optional;
 
 @Service
 @Slf4j
@@ -97,9 +97,7 @@ public class AuthService {
     public AuthStatusResponseDTO getStatus() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof NNHUserPrincipal userPrincipal)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(AuthStatusResponseDTO.builder()
-                    .authenticated(false)
-                    .build());
+            throw new UnauthorizedException("User is not authenticated");
         }
 
         return AuthStatusResponseDTO.builder()
