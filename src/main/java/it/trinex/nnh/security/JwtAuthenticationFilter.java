@@ -1,5 +1,6 @@
 package it.trinex.nnh.security;
 
+import it.trinex.nnh.model.AuthAccount;
 import it.trinex.nnh.service.JWTService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -58,7 +59,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             // Extract user principal from token
-            JWTUserPrincipal userPrincipal = jwtService.extractUserPrincipal(jwt);
+            AuthAccount userPrincipal = jwtService.extractUserPrincipal(jwt);
 
             // Check if user is not already authenticated
             if (SecurityContextHolder.getContext().getAuthentication() == null) {

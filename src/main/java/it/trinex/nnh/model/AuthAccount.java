@@ -18,10 +18,11 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
-@NoArgsConstructor
+//@NoArgsConstructor
 @AllArgsConstructor
 @Entity
 public abstract class AuthAccount implements UserDetails {
@@ -77,5 +78,7 @@ public abstract class AuthAccount implements UserDetails {
     public String getUsername() {
         return subject;
     }
+
+    public abstract Map<String, Object> getClaims();
 
 }

@@ -4,6 +4,8 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
+import it.trinex.nnh.model.AuthAccount;
+import it.trinex.nnh.properties.JwtProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -31,8 +33,6 @@ public class JWTService {
     private static final String CLAIM_OWNER_ID = "ownerId";
 
     private final JwtProperties jwtProperties;
-    private final OrganizationService organizationService;
-
     // ========================================
     // TOKEN GENERATION
     // ========================================
@@ -46,9 +46,9 @@ public class JWTService {
      * @param userPrincipal the authenticated user
      * @return JWT access token string
      */
-    public String generateAccessToken(JWTUserPrincipal userPrincipal) {
-        AuthAccountType role = extractRoleFromAuthorities(userPrincipal.getAuthorities());
-        long expirationMs = jwtProperties.getAccessToken().getExpiration().get(role.name());
+    public String generateAccessToken(AuthAccount userPrincipal) {
+        String role = extractRoleFromAuthorities(userPrincipal.getAuthorities());
+        long expirationMs = jwtProperties.getAccessTokenExp();
         String token = buildToken(userPrincipal, expirationMs, TOKEN_TYPE_ACCESS);
 
         // Track token for user-level revocation (e.g., password change)
@@ -66,9 +66,9 @@ public class JWTService {
      * @param userPrincipal the authenticated user
      * @return JWT refresh token string
      */
-    public String generateRefreshToken(JWTUserPrincipal userPrincipal) {
-        AuthAccountType role = extractRoleFromAuthorities(userPrincipal.getAuthorities());
-        long expirationMs = jwtProperties.getRefreshToken().getExpiration().get(role.name());
+    public String generateRefreshToken(AuthAccount userPrincipal) {
+        String role = extractRoleFromAuthorities(userPrincipal.getAuthorities());
+        long expirationMs = jwtProperties.getRefreshTokenExp();
         String token = buildToken(userPrincipal, expirationMs, TOKEN_TYPE_REFRESH);
 
         // Track token for user-level revocation (e.g., password change)
@@ -81,33 +81,20 @@ public class JWTService {
      * Builds a JWT token with all user principal information as claims.
      * Includes a unique JTI (JWT ID) for token revocation support.
      */
-    private String buildToken(JWTUserPrincipal userPrincipal, long expirationMs, String tokenType) {
+    private String buildToken(AuthAccount userPrincipal, long expirationMs, String tokenType) {
         Instant now = Instant.now();
         Instant expiration = now.plusMillis(expirationMs);
-
-        // Calculate active organization IDs if user has an ownerId
-        List<Long> activeOrganizationIds = null;
-        if (userPrincipal.getOwnerId().isPresent()) {
-            List<Organization> activeOrganizations = organizationService.findActiveOrganizationsByOwnerId(
-                    userPrincipal.getOwnerId().get());
-            activeOrganizationIds = activeOrganizations.stream()
-                    .map(Organization::getId)
-                    .toList();
-        }
-
-        return Jwts.builder()
-                .subject(userPrincipal.getUsername())
-                .id(UUID.randomUUID().toString())
-                .claim(CLAIM_UID, userPrincipal.id())
-                .claim(CLAIM_ROLE, extractRoleFromAuthorities(userPrincipal.getAuthorities()).name())
-                .claim(CLAIM_OWNER_ID, userPrincipal.getOwnerId().orElse(null))
-                .claim("firstName", userPrincipal.firstName())
-                .claim("lastName", userPrincipal.lastName())
-                .claim(TOKEN_TYPE_CLAIM, tokenType)
+        var builder = Jwts.builder()
+                .subject(userPrincipal.getSubject())
+                .id(userPrincipal.getId().toString())
+                .claim("token_type", tokenType)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)// todo: check deprecation
-                .compact();
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256);
+
+        userPrincipal.getClaims().forEach(builder::claim);
+
+        return builder.compact();
     }
 
     // ========================================
@@ -178,14 +165,12 @@ public class JWTService {
      * @return JWTUserPrincipal containing all user information
      * @throws RuntimeException if token is invalid or expired
      */
-    public JWTUserPrincipal extractUserPrincipal(String token) {
+    public AuthAccount extractUserPrincipal(String token) {
         Claims claims = extractAllClaims(token);
 
-        String username = claims.getSubject();
+        String subject = claims.getSubject();
         Long id = extractLongClaim(claims, CLAIM_UID);
         String role = claims.get(CLAIM_ROLE, String.class);
-        Optional<Long> ownerId = Optional.ofNullable(extractLongClaim(claims, CLAIM_OWNER_ID));
-
         String firstName = claims.get("firstName", String.class);
         String lastName = claims.get("lastName", String.class);
 
@@ -198,81 +183,31 @@ public class JWTService {
                 new SimpleGrantedAuthority("ROLE_" + role),
                 new SimpleGrantedAuthority(role));
 
-        return new JWTUserPrincipal(
-                id,
-                username,
-                null,
-                ownerId,
-                firstName,
-                lastName,
-                authorities);
+       return new AuthAccount(
+               id,
+               role,
+               subject,
+               null,
+               true,
+               null,
+               null,
+               null
+       ) {
+           @Override
+           public Map<String, Object> getClaims() {
+               return Map.of();
+           }
+       };
+
     }
 
-    // ========================================
-    // SECURITY CONTEXT ACCESS
-    // ========================================
 
-    /**
-     * Gets the currently authenticated user from Spring Security's SecurityContext.
-     * This is the recommended way to access the current user in controllers and
-     * services.
-     *
-     * @return the current JWTUserPrincipal
-     * @throws IllegalStateException if no user is authenticated
-     */
-    public JWTUserPrincipal getCurrentUser() {
-        return getCurrentUserOptional()
-                .orElseThrow(() -> new IllegalStateException("No authenticated user in security context"));
-    }
-
-    /**
-     * Gets the currently authenticated user from Spring Security's SecurityContext
-     * as an Optional.
-     * Returns empty if no user is authenticated.
-     *
-     * @return Optional containing the current JWTUserPrincipal, or empty if not
-     *         authenticated
-     */
-    public Optional<JWTUserPrincipal> getCurrentUserOptional() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication == null || !authentication.isAuthenticated() ||
-                authentication.getPrincipal() instanceof String) {
-            return Optional.empty();
-        }
-
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof JWTUserPrincipal jwtUserPrincipal) {
-            return Optional.of(jwtUserPrincipal);
-        }
-
-        return Optional.empty();
-    }
-
-    // ========================================
-    // INDIVIDUAL CLAIM EXTRACTION
-    // ========================================
-
-    /**
-     * Extracts the username (email) from a token.
-     */
-    public String extractUsername(String token) {
-        return extractAllClaims(token).getSubject();
-    }
-
-    /**
-     * Extracts the user ID from a token.
-     */
-    public Long extractUserId(String token) {
-        return extractLongClaim(extractAllClaims(token), CLAIM_UID);
-    }
 
     /**
      * Extracts the user's role (AuthAccountType) from a token.
      */
-    public AuthAccountType extractRole(String token) {
-        String roleName = extractAllClaims(token).get(CLAIM_ROLE, String.class);
-        return AuthAccountType.valueOf(roleName);
+    public String extractRole(String token) {
+        return extractAllClaims(token).get(CLAIM_ROLE, String.class);
     }
 
     /**
@@ -330,49 +265,20 @@ public class JWTService {
         return null;
     }
 
-    private List<Long> extractLongClaimList(Claims claims, String claimName) {
-        Object value = claims.get(claimName);
-        switch (value) {
-            case null -> {
-                return null;
-            }
-            case List<?> list -> {
-                List<Long> extractedLongs = new ArrayList<>();
-                for (Object item : list) {
-                    switch (item) {
-                        case Number number -> extractedLongs.add(number.longValue());
-                        case String string -> {
-                            try {
-                                extractedLongs.add(Long.parseLong(string));
-                            } catch (NumberFormatException e) {
-                                log.warn("Could not parse item {} in claim {} as Long: {}", string, claimName, item);
-                            }
-                        }
-                        default -> log.warn("Unsupported item type in claim {}: {}", claimName, item);
-                    }
-                }
-                return extractedLongs;
-            }
-            default -> {
-            }
-        }
-        return null;
-    }
-
     /**
      * Extracts AuthAccountType from Spring Security authorities.
      * Authorities are expected to contain a ROLE_ prefixed authority (e.g.
      * "ROLE_ADMIN").
      */
-    private AuthAccountType extractRoleFromAuthorities(Collection<? extends GrantedAuthority> authorities) {
+    private String extractRoleFromAuthorities(Collection<? extends GrantedAuthority> authorities) {
         String authority = authorities.stream()
                 .map(GrantedAuthority::getAuthority)
                 .filter(auth -> auth.startsWith("ROLE_"))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("No valid role found in authorities"));
 
-        String roleName = authority.substring(5); // Remove "ROLE_" prefix
-        return AuthAccountType.valueOf(roleName);
+        // Remove "ROLE_" prefix
+        return authority.substring(5);
     }
 
     /**
@@ -386,16 +292,16 @@ public class JWTService {
     /**
      * Calculates the expiration instant for an access token based on role.
      */
-    public Instant calculateAccessTokenExpiration(AuthAccountType role) {
-        long expirationMs = jwtProperties.getAccessToken().getExpiration().get(role.name());
+    public Instant calculateAccessTokenExpiration() {
+        long expirationMs = jwtProperties.getAccessTokenExp();
         return Instant.now().plusMillis(expirationMs);
     }
 
     /**
      * Calculates the expiration instant for a refresh token based on role.
      */
-    public Instant calculateRefreshTokenExpiration(AuthAccountType role) {
-        long expirationMs = jwtProperties.getRefreshToken().getExpiration().get(role.name());
+    public Instant calculateRefreshTokenExpiration() {
+        long expirationMs = jwtProperties.getRefreshTokenExp();
         return Instant.now().plusMillis(expirationMs);
     }
 }

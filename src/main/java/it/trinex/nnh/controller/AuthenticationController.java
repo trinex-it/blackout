@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import it.trinex.nnh.model.AuthAccount;
 import it.trinex.nnh.service.JWTService;
 
 import jakarta.validation.Valid;
@@ -224,13 +225,14 @@ public class AuthenticationController {
     }
 
     // Extract user from refresh token (no database call needed!)
-    JWTUserPrincipal userPrincipal = jwtService.extractUserPrincipal(refreshToken);
+    AuthAccount userPrincipal = jwtService.extractUserPrincipal(refreshToken);
 
     // Generate new access token
+    // todo: ricarica utente da DB
     String newAccessToken = jwtService.generateAccessToken(userPrincipal);
 
     // Calculate expiration time for client
-    AuthAccountType role = jwtService.extractRole(newAccessToken);
+    String role = jwtService.extractRole(newAccessToken);
     long accessTokenExpirationMs = jwtService.calculateAccessTokenExpiration(role).toEpochMilli()
         - System.currentTimeMillis();
     long refreshTokenExpirationMs = jwtService.calculateRefreshTokenExpiration(role).toEpochMilli()

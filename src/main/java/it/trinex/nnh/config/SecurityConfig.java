@@ -1,6 +1,7 @@
 package it.trinex.nnh.config;
 
 import it.trinex.nnh.properties.CorsProperties;
+import it.trinex.nnh.properties.JwtProperties;
 import it.trinex.nnh.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -32,7 +33,7 @@ import java.util.List;
 @EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
-@EnableConfigurationProperties({CorsProperties.class})
+@EnableConfigurationProperties({CorsProperties.class, JwtProperties.class})
 @ConditionalOnBean({JwtAuthenticationFilter.class, UserDetailsService.class, CorsProperties.class})
 public class SecurityConfig {
 
