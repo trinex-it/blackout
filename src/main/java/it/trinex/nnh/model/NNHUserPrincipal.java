@@ -15,6 +15,7 @@ import java.util.Map;
 public class NNHUserPrincipal implements UserDetails{
 
     Long id;
+    Long userId;
     String username;
     String password;
     String firstName;

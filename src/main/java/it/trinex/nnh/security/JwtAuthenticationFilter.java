@@ -1,7 +1,5 @@
 package it.trinex.nnh.security;
 
-import it.trinex.nnh.model.AuthAccount;
-import it.trinex.nnh.model.NNHUserPrincipal;
 import it.trinex.nnh.service.JWTService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
