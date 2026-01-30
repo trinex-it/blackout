@@ -4,6 +4,7 @@ import it.trinex.nnh.AuthAccountRepo;
 import it.trinex.nnh.exception.AccountNotActiveException;
 import it.trinex.nnh.model.AuthAccount;
 import it.trinex.nnh.model.NNHUserPrincipal;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -18,6 +19,11 @@ import java.util.List;
 public class MyUserDetailService implements UserDetailsService {
 
     private final AuthAccountRepo authAccountRepo;
+
+    @PostConstruct
+    void init() {
+        System.out.println("userniger CONFIG LOADED");
+    }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {

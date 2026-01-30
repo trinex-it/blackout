@@ -3,6 +3,7 @@ package it.trinex.nnh.autoconfig;
 import it.trinex.nnh.properties.CorsProperties;
 import it.trinex.nnh.properties.JwtProperties;
 import it.trinex.nnh.security.JwtAuthenticationFilter;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -32,12 +33,18 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableMethodSecurity
 @RequiredArgsConstructor
 @EnableConfigurationProperties({CorsProperties.class, JwtProperties.class})
-@ConditionalOnBean({JwtAuthenticationFilter.class, UserDetailsService.class, CorsProperties.class})
+@ConditionalOnBean({JwtAuthenticationFilter.class, UserDetailsService.class})
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsService userDetailsService;
     private final CorsProperties corsProperties;
+
+    @PostConstruct
+    void init() {
+        System.out.println("SECURITY AUTO CONFIG LOADED");
+    }
+
 
     /**
      * Configures the security filter chain with JWT authentication.

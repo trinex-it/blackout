@@ -1,6 +1,7 @@
 package it.trinex.nnh.security;
 
 import it.trinex.nnh.service.JWTService;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,6 +24,11 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JWTService jwtService;
+
+    @PostConstruct
+    void init() {
+        System.out.println("filterniger LOADED");
+    }
 
     @Override
     protected void doFilterInternal(
