@@ -1,6 +1,8 @@
 package it.trinex.nnh.service;
 
+import it.trinex.nnh.AuthAccountRepo;
 import it.trinex.nnh.controller.AuthResponseDTO;
+import it.trinex.nnh.model.AuthAccount;
 import it.trinex.nnh.model.NNHUserPrincipal;
 import it.trinex.nnh.properties.CorsProperties;
 import it.trinex.nnh.properties.JwtProperties;
@@ -14,6 +16,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -22,7 +25,9 @@ public class AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final JWTService jwtService;
+    private final AuthAccountRepo authAccountRepo;
     private final JwtProperties jwtProperties;
+
     public AuthResponseDTO login(String subject, String password, Boolean rememberMe) {
         log.info("Login attempt for user: '{}' ", subject);
 
@@ -56,5 +61,9 @@ public class AuthService {
             .access_token_expiration(accessTokenExpirationMs)
             .refresh_token_expiration(refreshTokenMaxAge)
             .build();
+    }
+
+    public AuthAccount registerAuthAccount(AuthAccount authAccount) {
+        return authAccountRepo.save(authAccount);
     }
 }
