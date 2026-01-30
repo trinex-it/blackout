@@ -1,4 +1,6 @@
-it.trinex.nnh.config.SecurityConfig
+it.trinex.nnh.autoconfig.SecurityConfig
+it.trinex.nnh.autoconfig.JwtConfig
 it.trinex.nnh.security.JwtAuthenticationFilter
 it.trinex.nnh.service.JWTService
 it.trinex.nnh.properties.CorsProperties
+it.trinex.nnh.NNHPrincipalFactory

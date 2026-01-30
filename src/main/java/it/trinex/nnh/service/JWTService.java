@@ -4,14 +4,14 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
-import it.trinex.nnh.model.AuthAccount;
+import it.trinex.nnh.NNHPrincipalFactory;
+import it.trinex.nnh.model.NNHUserPrincipal;
 import it.trinex.nnh.properties.JwtProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -30,9 +30,10 @@ public class JWTService {
 
     private static final String CLAIM_UID = "uid";
     private static final String CLAIM_ROLE = "role";
-    private static final String CLAIM_OWNER_ID = "ownerId";
-
+    private static final String CLAIM_FIRSTNAME = "firstname";
+    private static final String CLAIM_LASTNAME = "lastname";
     private final JwtProperties jwtProperties;
+    private final NNHPrincipalFactory<? extends UserDetails> nnhPrincipalFactory;
     // ========================================
     // TOKEN GENERATION
     // ========================================
@@ -46,14 +47,14 @@ public class JWTService {
      * @param userPrincipal the authenticated user
      * @return JWT access token string
      */
-    public String generateAccessToken(AuthAccount userPrincipal) {
-        String role = extractRoleFromAuthorities(userPrincipal.getAuthorities());
+    public String generateAccessToken(NNHUserPrincipal userPrincipal) {
         long expirationMs = jwtProperties.getAccessTokenExp();
         String token = buildToken(userPrincipal, expirationMs, TOKEN_TYPE_ACCESS);
 
+        // todo: REDIS jwt TRACKING
         // Track token for user-level revocation (e.g., password change)
-        String jti = extractJti(token);
-        Date expiration = extractExpiration(token);
+//        String jti = extractJti(token);
+//        Date expiration = extractExpiration(token);
         return token;
     }
 
@@ -66,14 +67,15 @@ public class JWTService {
      * @param userPrincipal the authenticated user
      * @return JWT refresh token string
      */
-    public String generateRefreshToken(AuthAccount userPrincipal) {
+    public String generateRefreshToken(NNHUserPrincipal userPrincipal) {
         String role = extractRoleFromAuthorities(userPrincipal.getAuthorities());
         long expirationMs = jwtProperties.getRefreshTokenExp();
         String token = buildToken(userPrincipal, expirationMs, TOKEN_TYPE_REFRESH);
 
+        // todo: REDIS jwt TRACKING
         // Track token for user-level revocation (e.g., password change)
-        String jti = extractJti(token);
-        Date expiration = extractExpiration(token);
+//        String jti = extractJti(token);
+//        Date expiration = extractExpiration(token);
         return token;
     }
 
@@ -81,18 +83,22 @@ public class JWTService {
      * Builds a JWT token with all user principal information as claims.
      * Includes a unique JTI (JWT ID) for token revocation support.
      */
-    private String buildToken(AuthAccount userPrincipal, long expirationMs, String tokenType) {
+    private String buildToken(NNHUserPrincipal userPrincipal, long expirationMs, String tokenType) {
         Instant now = Instant.now();
         Instant expiration = now.plusMillis(expirationMs);
         var builder = Jwts.builder()
-                .subject(userPrincipal.getSubject())
-                .id(userPrincipal.getId().toString())
+                .subject(userPrincipal.getUsername())
+                .id(UUID.randomUUID().toString())
                 .claim("token_type", tokenType)
+                .claim(CLAIM_UID, userPrincipal.getId())
+                .claim(CLAIM_ROLE, extractRoleFromAuthorities(userPrincipal.getAuthorities()))
+                .claim(CLAIM_FIRSTNAME, userPrincipal.getFirstName())
+                .claim(CLAIM_LASTNAME, userPrincipal.getLastName())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256);
 
-        userPrincipal.getClaims().forEach(builder::claim);
+        userPrincipal.getExtraClaims().forEach(builder::claim);
 
         return builder.compact();
     }
@@ -165,43 +171,18 @@ public class JWTService {
      * @return JWTUserPrincipal containing all user information
      * @throws RuntimeException if token is invalid or expired
      */
-    public AuthAccount extractUserPrincipal(String token) {
+    public UserDetails extractUserPrincipal(String token) {
         Claims claims = extractAllClaims(token);
 
-        String subject = claims.getSubject();
-        Long id = extractLongClaim(claims, CLAIM_UID);
         String role = claims.get(CLAIM_ROLE, String.class);
-        String firstName = claims.get("firstName", String.class);
-        String lastName = claims.get("lastName", String.class);
 
-        // Provide both the ROLE_ prefixed authority (used by hasRole checks) and the
-        // plain
-        // authority (used by hasAuthority checks in this codebase). This ensures
-        // compatibility
-        // with both kinds of SpEL checks.
         List<SimpleGrantedAuthority> authorities = List.of(
                 new SimpleGrantedAuthority("ROLE_" + role),
                 new SimpleGrantedAuthority(role));
 
-       return new AuthAccount(
-               id,
-               role,
-               subject,
-               null,
-               true,
-               null,
-               null,
-               null
-       ) {
-           @Override
-           public Map<String, Object> getClaims() {
-               return Map.of();
-           }
-       };
+       return nnhPrincipalFactory.fromClaims(claims, authorities);
 
     }
-
-
 
     /**
      * Extracts the user's role (AuthAccountType) from a token.
@@ -237,32 +218,6 @@ public class JWTService {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-    }
-
-    /**
-     * Extracts a Long value from claims, handling both Number and String types.
-     */
-    private Long extractLongClaim(Claims claims, String claimName) {
-        Object value = claims.get(claimName);
-        switch (value) {
-            case null -> {
-                return null;
-            }
-            case Number number -> {
-                return number.longValue();
-            }
-            case String string -> {
-                try {
-                    return Long.parseLong(string);
-                } catch (NumberFormatException e) {
-                    log.warn("Could not parse claim {} as Long: {}", claimName, value);
-                    return null;
-                }
-            }
-            default -> {
-            }
-        }
-        return null;
     }
 
     /**

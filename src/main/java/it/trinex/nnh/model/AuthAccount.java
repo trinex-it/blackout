@@ -22,13 +22,15 @@ import java.util.Map;
 
 @Getter
 @Setter
-//@NoArgsConstructor
+@NoArgsConstructor
 @AllArgsConstructor
 @Entity
 public abstract class AuthAccount implements UserDetails {
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Id
     private Long id;
+
+    @Column(nullable = false)
     private String role;
 
     // Credentials
