@@ -53,16 +53,11 @@ public class SecurityConfig {
 
                 // Configure authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints - no authentication required
-                        .requestMatchers("/api/public/**").permitAll()
-
                         // Authentication endpoints - no authentication required
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/auth/status").permitAll()
-
+                        .requestMatchers("/api/jwt/**").permitAll()
                         // Swagger/OpenAPI endpoints - no authentication required (dev only)
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-
                         // All other API endpoints require authentication
                         .requestMatchers("/api/**").authenticated())
 
