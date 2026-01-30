@@ -8,29 +8,72 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import it.trinex.nnh.exception.NNHException;
 import it.trinex.nnh.model.AuthAccount;
-import it.trinex.nnh.service.JWTService;
-
+import it.trinex.nnh.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
-
 @Slf4j
-@RestController
+@RestController("authController")
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@ConditionalOnMissingBean(name = "authController")
 @Tag(name = "Authentication", description = "Endpoints for user authentication and token management")
 public class AuthenticationController {
-    //TODO Implement default controller
+
+    private final AuthService authService;
+    private final PasswordEncoder passwordEncoder;
+
+    @Value("${nnh.default.signup.role:USER}")
+    private String defaultSignupRole;
+
+    @PostMapping("/login")
+    @Operation(summary = "Login user", description = "Authenticate user with email and password, returns JWT tokens")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Login successful",
+            content = @Content(schema = @Schema(implementation = AuthResponseDTO.class))),
+        @ApiResponse(responseCode = "401", description = "Invalid credentials")
+    })
+    public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
+        AuthResponseDTO response = authService.login(
+                request.getEmail(),
+                request.getPassword(),
+                request.getRememberMe()
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/signup")
+    @Operation(summary = "Register user", description = "Create a new account with email and password")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Account created successfully",
+            content = @Content(schema = @Schema(implementation = AuthAccount.class))),
+        @ApiResponse(responseCode = "400", description = "Validation failed or passwords don't match")
+    })
+    public ResponseEntity<AuthAccount> signup(@Valid @RequestBody SignupRequestDTO request) {
+        // Validate password confirmation
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            throw new NNHException(HttpStatus.BAD_REQUEST, "PASSWORDS_DO_NOT_MATCH", "Passwords do not match");
+        }
+
+        // Create new AuthAccount
+        AuthAccount authAccount = new AuthAccount();
+        authAccount.setUsername(request.getEmail());
+        authAccount.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        authAccount.setRole(defaultSignupRole);
+        authAccount.setFirstName("");
+        authAccount.setLastName("");
+        authAccount.setActive(true);
+
+        AuthAccount saved = authService.registerAuthAccount(authAccount);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
 }
