@@ -25,7 +25,7 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-public abstract class AuthAccount implements UserDetails {
+public class AuthAccount {
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Id
     private Long id;
@@ -33,9 +33,14 @@ public abstract class AuthAccount implements UserDetails {
     @Column(nullable = false)
     private String role;
 
+    @Column(nullable = false)
+    private String firstName;
+    @Column(nullable = false)
+    private String lastName;
+
     // Credentials
     @Column(unique = true, nullable = false)
-    private String subject;
+    private String username;
     @Column(nullable = false)
     private String passwordHash;
     @Column(nullable = false)
@@ -63,24 +68,4 @@ public abstract class AuthAccount implements UserDetails {
     public void setDeleted() {
         deletedAt = Instant.now();
     }
-
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(
-                new SimpleGrantedAuthority("ROLE_" + role),
-                new SimpleGrantedAuthority(role));
-    }
-
-    @Override
-    public String getPassword() {
-        return passwordHash;
-    }
-
-    @Override
-    public String getUsername() {
-        return subject;
-    }
-
-    public abstract Map<String, Object> getClaims();
-
 }

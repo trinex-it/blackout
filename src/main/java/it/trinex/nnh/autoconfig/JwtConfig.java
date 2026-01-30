@@ -13,13 +13,13 @@ public class JwtConfig {
     @ConditionalOnMissingBean(NNHPrincipalFactory.class)
     public NNHPrincipalFactory<UserDetails> defaultPrincipalFactory() {
         return (claims, authorities) ->
-            new NNHUserPrincipal(
-                Long.valueOf(claims.getId()),
-                claims.getSubject(),
-                null,
-                claims.get("firstname", String.class),
-                claims.get("lastname", String.class),
-                authorities
-            );
+                NNHUserPrincipal.builder()
+                        .id(Long.valueOf(claims.getId()))
+                        .username(claims.getSubject())
+                        .password(null)
+                        .firstName(claims.get("firstname", String.class))
+                        .lastName(claims.get("lastname", String.class))
+                        .authorities(authorities)
+                        .build();
     }
 }
