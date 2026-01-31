@@ -4,10 +4,9 @@ import it.trinex.nnh.AuthAccountRepo;
 import it.trinex.nnh.exception.AccountNotActiveException;
 import it.trinex.nnh.model.AuthAccount;
 import it.trinex.nnh.model.NNHUserPrincipal;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
@@ -15,14 +14,15 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
+@ConditionalOnMissingBean(UserDetailsService.class)
 @RequiredArgsConstructor
-public class MyUserDetailService implements UserDetailsService {
+public class NNHUserDetailService implements UserDetailsService {
 
-    private final AuthAccountRepo authAccountRepo;
+    protected final AuthAccountRepo authAccountRepo;
 
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+    public NNHUserPrincipal loadUserByUsername(String username) throws UsernameNotFoundException {
         AuthAccount authAccount = authAccountRepo.findByUsername(username).orElseThrow(
                 () -> new UsernameNotFoundException(username));
 

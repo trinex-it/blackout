@@ -3,6 +3,7 @@ package it.trinex.nnh.model;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.experimental.SuperBuilder;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -11,7 +12,7 @@ import java.util.Map;
 
 @Data
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 public class NNHUserPrincipal implements UserDetails{
 
     Long id;
