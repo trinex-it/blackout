@@ -14,11 +14,12 @@ import java.util.List;
 @ConfigurationProperties(prefix = "nnh.cors")
 public class CorsProperties {
 
-    // getter & setter
-    private List<String> allowedOrigins = List.of("*");
-    private List<String> allowedMethods = List.of("*");
-    private List<String> allowedHeaders = List.of("*");
-    private boolean allowCredentials = true;
+    // Note: When allowCredentials is true, you cannot use "*" for allowedOrigins
+    // For development with curl/browser, you can set allowCredentials=false in application.yml
+    private List<String> allowedOrigins = new ArrayList<>(List.of("*"));
+    private List<String> allowedMethods = new ArrayList<>(List.of("*"));
+    private List<String> allowedHeaders = new ArrayList<>(List.of("*"));
+    private boolean allowCredentials = false;  // Changed to false for development
     private long maxAge = 3600;
 
 }

@@ -102,6 +102,7 @@ public class AuthService {
 
         return AuthStatusResponseDTO.builder()
                 .authenticated(true)
+                .id(userPrincipal.getId())
                 .username(userPrincipal.getUsername())
                 .role(userPrincipal.getAuthorities().stream().findFirst().map(Object::toString)
                         .orElse("UNKNOWN"))

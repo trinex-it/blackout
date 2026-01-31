@@ -18,6 +18,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HttpBasicConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -40,12 +41,6 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
     private final CorsProperties corsProperties;
 
-    @PostConstruct
-    void init() {
-        System.out.println("SECURITY AUTO CONFIG LOADED");
-    }
-
-
     /**
      * Configures the security filter chain with JWT authentication.
      */
@@ -56,14 +51,21 @@ public class SecurityConfig {
                 // Disable CSRF (not needed for JWT stateless authentication)
                 .csrf(AbstractHttpConfigurer::disable)
 
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // Disable HTTP Basic (using JWT only)
+                .httpBasic(HttpBasicConfigurer::disable)
 
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+//                .cors(AbstractHttpConfigurer::disable)
                 // Configure authorization rules
                 .authorizeHttpRequests(auth -> auth
+                        // Error page - must be accessible to all
+                        .requestMatchers("/error").permitAll()
                         // Authentication endpoints - no authentication required
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/jwt/**").permitAll()
-                        .requestMatchers("/api/merda/**").permitAll()
+                        // Test endpoint - no authentication required
+                        .requestMatchers("/api/merda", "/api/merda/**").permitAll()
+                        .requestMatchers("/api/pene", "/api/pene/**").permitAll()
                         // Swagger/OpenAPI endpoints - no authentication required (dev only)
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         // All other API endpoints require authentication
@@ -119,14 +121,25 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
+        // When allowCredentials is true, cannot use wildcard for origins
+        if (corsProperties.isAllowCredentials()) {
+            // Validate that origins are not wildcards when credentials are enabled
+            if (corsProperties.getAllowedOrigins() != null &&
+                    corsProperties.getAllowedOrigins().contains("*")) {
+                throw new IllegalStateException(
+                        "CORS configuration error: When allowCredentials is true, " +
+                        "allowedOrigins cannot be '*'. Please specify explicit origins in nnh.cors.allowedOrigins");
+            }
+            configuration.setAllowCredentials(true);
+        }
+
         configuration.setAllowedOrigins(corsProperties.getAllowedOrigins());
         configuration.setAllowedMethods(corsProperties.getAllowedMethods());
         configuration.setAllowedHeaders(corsProperties.getAllowedHeaders());
-        configuration.setAllowCredentials(corsProperties.isAllowCredentials());
         configuration.setMaxAge(corsProperties.getMaxAge());
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration); // puoi cambiare il path se vuoi limitare
+        source.registerCorsConfiguration("/**", configuration);
 
         return source;
     }

@@ -27,7 +27,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JWTService {
 
-    private static final String TOKEN_TYPE_CLAIM = "tokenType";
+    private static final String TOKEN_TYPE_CLAIM = "token_type";
     private static final String TOKEN_TYPE_ACCESS = "ACCESS";
     private static final String TOKEN_TYPE_REFRESH = "REFRESH";
 
@@ -35,6 +35,8 @@ public class JWTService {
     private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_FIRSTNAME = "firstname";
     private static final String CLAIM_LASTNAME = "lastname";
+
+
     private final JwtProperties jwtProperties;
     private final NNHPrincipalFactory<? extends UserDetails> nnhPrincipalFactory;
     // ========================================
@@ -92,7 +94,7 @@ public class JWTService {
         var builder = Jwts.builder()
                 .subject(userPrincipal.getUsername())
                 .id(UUID.randomUUID().toString())
-                .claim("token_type", tokenType)
+                .claim(TOKEN_TYPE_CLAIM, tokenType)
                 .claim(CLAIM_UID, userPrincipal.getId())
                 .claim(CLAIM_ROLE, extractRoleFromAuthorities(userPrincipal.getAuthorities()))
                 .claim(CLAIM_FIRSTNAME, userPrincipal.getFirstName())
@@ -180,8 +182,8 @@ public class JWTService {
         String role = claims.get(CLAIM_ROLE, String.class);
 
         List<SimpleGrantedAuthority> authorities = List.of(
-                new SimpleGrantedAuthority("ROLE_" + role),
-                new SimpleGrantedAuthority(role));
+                new SimpleGrantedAuthority(role),
+                new SimpleGrantedAuthority("ROLE_" + role));
 
        return nnhPrincipalFactory.fromClaims(claims, authorities);
 

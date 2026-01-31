@@ -18,5 +18,5 @@ public class LoginRequestDTO {
     private String password;
 
     @Schema(description = "Remember me flag", example = "true", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-    private Boolean rememberMe;
+    private Boolean rememberMe = false;
 }

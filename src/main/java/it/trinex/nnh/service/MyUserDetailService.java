@@ -20,10 +20,6 @@ public class MyUserDetailService implements UserDetailsService {
 
     private final AuthAccountRepo authAccountRepo;
 
-    @PostConstruct
-    void init() {
-        System.out.println("userniger CONFIG LOADED");
-    }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {

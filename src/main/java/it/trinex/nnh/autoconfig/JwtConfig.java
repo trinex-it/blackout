@@ -14,7 +14,7 @@ public class JwtConfig {
     public NNHPrincipalFactory<UserDetails> defaultPrincipalFactory() {
         return (claims, authorities) ->
                 NNHUserPrincipal.builder()
-                        .id(Long.valueOf(claims.getId()))
+                        .id(claims.get("uid", Long.class))
                         .username(claims.getSubject())
                         .password(null)
                         .firstName(claims.get("firstname", String.class))

@@ -25,11 +25,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JWTService jwtService;
 
-    @PostConstruct
-    void init() {
-        System.out.println("filterniger LOADED");
-    }
-
     @Override
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
@@ -39,7 +34,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // Extract token from Authorization header
         String jwt = null;
 
-        if (request.getCookies() != null) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            jwt = authHeader.substring(7);
+        } else if (request.getCookies() != null) {
             for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
                 if ("access_token".equals(cookie.getName())) {
                     jwt = cookie.getValue();
@@ -49,7 +47,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         if (jwt == null) {
-            log.debug("No access_token cookie found in request to: {}", request.getRequestURI());
+            log.debug("No access_token cookie or Authorization header found in request to: {}", request.getRequestURI());
             filterChain.doFilter(request, response);
             return;
         }
