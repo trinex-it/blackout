@@ -17,7 +17,6 @@ public abstract class AbstractNNHPrincipalFactory<T extends UserDetails> impleme
 
     @Override
     public final T fromClaims(Claims claims, Collection<? extends GrantedAuthority> authorities) {
-        @SuppressWarnings("unchecked")
         NNHUserPrincipal.NNHUserPrincipalBuilder<?, ?> builder = (NNHUserPrincipal.NNHUserPrincipalBuilder<?, ?>) getBuilder();
 
         // Handle all common fields
