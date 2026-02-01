@@ -1,4 +1,4 @@
-it.trinex.nnh.autoconfig.SecurityConfig
-it.trinex.nnh.autoconfig.JwtConfig
-it.trinex.nnh.autoconfig.NNHDataSourceConfig
-it.trinex.nnh.autoconfig.OpenApiConfig
+it.trinex.blackout.autoconfig.SecurityConfig
+it.trinex.blackout.autoconfig.JwtConfig
+it.trinex.blackout.autoconfig.NNHDataSourceConfig
+it.trinex.blackout.autoconfig.OpenApiConfig
