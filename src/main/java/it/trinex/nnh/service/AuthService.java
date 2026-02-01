@@ -29,6 +29,8 @@ public class AuthService {
     private final JWTService jwtService;
     private final AuthAccountRepo authAccountRepo;
     private final JwtProperties jwtProperties;
+
+
     public AuthResponseDTO login(String subject, String password, Boolean rememberMe) {
         log.info("Login attempt for user: '{}' ", subject);
 
