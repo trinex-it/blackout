@@ -40,6 +40,7 @@ public class NNHUserDetailService implements UserDetailsService {
 
         return NNHUserPrincipal.builder()
                 .id(authAccount.getId())
+                .userId(null)
                 .authorities(authorities)
                 .username(username)
                 .password(authAccount.getPasswordHash())

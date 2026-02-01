@@ -12,9 +12,9 @@
     </parent>
 
     <groupId>it.trinex</groupId>
-    <artifactId>nnh</artifactId>
+    <artifactId>blackout</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-    <name>No Nakers Here</name>
+    <name>Blackout Auth System</name>
     <description>Spring Security configuration starter</description>
 
     <properties>
