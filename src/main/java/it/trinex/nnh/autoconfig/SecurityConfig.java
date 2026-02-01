@@ -7,6 +7,7 @@ import it.trinex.nnh.properties.SignupProperties;
 import it.trinex.nnh.security.JwtAuthenticationFilter;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -20,6 +21,8 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.configurers.HttpBasicConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -43,6 +46,8 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
     private final CorsProperties corsProperties;
     private final FilterChainProperties filterChainProperties;
+    //Even if no bean is defined Spring should inject its own
+    private final ObjectProvider<Customizer<AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry>> authorizeHttpRequestsCustomizer;
     private final SignupProperties signupProperties;
 
     /**
@@ -62,6 +67,7 @@ public class SecurityConfig {
 //                .cors(AbstractHttpConfigurer::disable)
                 // Configure authorization rules
                 .authorizeHttpRequests(auth -> {
+                    authorizeHttpRequestsCustomizer.ifAvailable(c -> c.customize(auth));
                     // Error page - must be accessible to all
                     auth.requestMatchers("/error").permitAll();
                     // Authentication endpoints - no authentication required
@@ -76,9 +82,9 @@ public class SecurityConfig {
 
                     // Custom allowed endpoints from properties
                     if (filterChainProperties.getAllowed() != null) {
-                        for (String pattern : filterChainProperties.getAllowed()) {
-                            auth.requestMatchers(pattern).permitAll();
-                        }
+                        filterChainProperties.getAllowed().forEach(
+                            pattern -> auth.requestMatchers(pattern).permitAll()
+                        );
                     }
 
                     // All other API endpoints require authentication
@@ -86,9 +92,9 @@ public class SecurityConfig {
 
                     // Custom authenticated endpoints from properties
                     if (filterChainProperties.getAuthenticated() != null) {
-                        for (String pattern : filterChainProperties.getAuthenticated()) {
-                            auth.requestMatchers(pattern).authenticated();
-                        }
+                        filterChainProperties.getAuthenticated().forEach(
+                            pattern -> auth.requestMatchers(pattern).authenticated()
+                        );
                     }
                 })
 
