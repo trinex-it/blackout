@@ -1,6 +1,7 @@
 package it.trinex.nnh.autoconfig;
 
 import it.trinex.nnh.properties.CorsProperties;
+import it.trinex.nnh.properties.FilterChainProperties;
 import it.trinex.nnh.properties.JwtProperties;
 import it.trinex.nnh.security.JwtAuthenticationFilter;
 import jakarta.annotation.PostConstruct;
@@ -33,13 +34,14 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
-@EnableConfigurationProperties({CorsProperties.class, JwtProperties.class})
+@EnableConfigurationProperties({CorsProperties.class, JwtProperties.class, FilterChainProperties.class})
 @ConditionalOnBean({JwtAuthenticationFilter.class, UserDetailsService.class})
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsService userDetailsService;
     private final CorsProperties corsProperties;
+    private final FilterChainProperties filterChainProperties;
 
     /**
      * Configures the security filter chain with JWT authentication.
@@ -57,19 +59,32 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 //                .cors(AbstractHttpConfigurer::disable)
                 // Configure authorization rules
-                .authorizeHttpRequests(auth -> auth
-                        // Error page - must be accessible to all
-                        .requestMatchers("/error").permitAll()
-                        // Authentication endpoints - no authentication required
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/jwt/**").permitAll()
-                        // Test endpoint - no authentication required
-                        .requestMatchers("/api/merda", "/api/merda/**").permitAll()
-                        .requestMatchers("/api/pene", "/api/pene/**").permitAll()
-                        // Swagger/OpenAPI endpoints - no authentication required (dev only)
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                        // All other API endpoints require authentication
-                        .requestMatchers("/api/**").authenticated())
+                .authorizeHttpRequests(auth -> {
+                    // Error page - must be accessible to all
+                    auth.requestMatchers("/error").permitAll();
+                    // Authentication endpoints - no authentication required
+                    auth.requestMatchers("/api/auth/**").permitAll();
+                    auth.requestMatchers("/api/jwt/**").permitAll();
+                    // Swagger/OpenAPI endpoints - no authentication required (dev only)
+                    auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll();
+
+                    // Custom allowed endpoints from properties
+                    if (filterChainProperties.getAllowed() != null) {
+                        for (String pattern : filterChainProperties.getAllowed()) {
+                            auth.requestMatchers(pattern).permitAll();
+                        }
+                    }
+
+                    // All other API endpoints require authentication
+                    auth.requestMatchers("/api/**").authenticated();
+
+                    // Custom authenticated endpoints from properties
+                    if (filterChainProperties.getAuthenticated() != null) {
+                        for (String pattern : filterChainProperties.getAuthenticated()) {
+                            auth.requestMatchers(pattern).authenticated();
+                        }
+                    }
+                })
 
                 // Stateless session management (no server-side sessions)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
