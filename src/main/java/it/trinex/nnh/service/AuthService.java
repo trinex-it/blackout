@@ -3,6 +3,7 @@ package it.trinex.nnh.service;
 import it.trinex.nnh.AuthAccountRepo;
 import it.trinex.nnh.controller.AuthResponseDTO;
 import it.trinex.nnh.controller.AuthStatusResponseDTO;
+import it.trinex.nnh.exception.DuplicateKeyException;
 import it.trinex.nnh.exception.InvalidTokenException;
 import it.trinex.nnh.exception.UnauthorizedException;
 import it.trinex.nnh.model.AuthAccount;
@@ -10,11 +11,13 @@ import it.trinex.nnh.model.NNHUserPrincipal;
 import it.trinex.nnh.properties.JwtProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -35,10 +38,15 @@ public class AuthService {
         log.info("Login attempt for user: '{}' ", subject);
 
         // Authenticate user with Spring Security
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        subject,
-                        password));
+        Authentication authentication;
+        try {
+            authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            subject,
+                            password));
+        } catch (AuthenticationException e) {
+            throw new UnauthorizedException("Invalid username or password");
+        }
 
         // Extract authenticated user principal
         NNHUserPrincipal userPrincipal = (NNHUserPrincipal) authentication.getPrincipal();
@@ -114,6 +122,18 @@ public class AuthService {
     }
 
     public AuthAccount registerAuthAccount(AuthAccount authAccount) {
-        return authAccountRepo.save(authAccount);
+        try {
+            return authAccountRepo.save(authAccount);
+        } catch (DataIntegrityViolationException e) {
+            log.warn("Duplicate key violation during registration: {}", e.getMessage());
+
+            // Check if the exception is related to username/email uniqueness
+            if (e.getMessage() != null && e.getMessage().contains("username")) {
+                throw new DuplicateKeyException("email", authAccount.getUsername());
+            }
+
+            // Generic duplicate key error
+            throw new DuplicateKeyException("A record with these values already exists");
+        }
     }
 }
