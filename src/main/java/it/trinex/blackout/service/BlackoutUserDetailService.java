@@ -3,7 +3,7 @@ package it.trinex.blackout.service;
 import it.trinex.blackout.AuthAccountRepo;
 import it.trinex.blackout.exception.AccountNotActiveException;
 import it.trinex.blackout.model.AuthAccount;
-import it.trinex.blackout.model.NNHUserPrincipal;
+import it.trinex.blackout.model.BlackoutUserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -16,13 +16,13 @@ import java.util.List;
 @Service
 @ConditionalOnMissingBean(UserDetailsService.class)
 @RequiredArgsConstructor
-public class NNHUserDetailService implements UserDetailsService {
+public class BlackoutUserDetailService implements UserDetailsService {
 
     protected final AuthAccountRepo authAccountRepo;
 
 
     @Override
-    public NNHUserPrincipal loadUserByUsername(String username) throws UsernameNotFoundException {
+    public BlackoutUserPrincipal loadUserByUsername(String username) throws UsernameNotFoundException {
         AuthAccount authAccount = authAccountRepo.findByUsername(username).orElseThrow(
                 () -> new UsernameNotFoundException(username));
 
@@ -38,7 +38,7 @@ public class NNHUserDetailService implements UserDetailsService {
         String firstName = authAccount.getFirstName();
         String lastName = authAccount.getLastName();
 
-        return NNHUserPrincipal.builder()
+        return BlackoutUserPrincipal.builder()
                 .id(authAccount.getId())
                 .userId(null)
                 .authorities(authorities)

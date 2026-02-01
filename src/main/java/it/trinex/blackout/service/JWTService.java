@@ -4,8 +4,8 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
-import it.trinex.blackout.NNHPrincipalFactory;
-import it.trinex.blackout.model.NNHUserPrincipal;
+import it.trinex.blackout.BlackoutPrincipalFactory;
+import it.trinex.blackout.model.BlackoutUserPrincipal;
 import it.trinex.blackout.properties.JwtProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,7 +39,7 @@ public class JWTService {
 
 
     private final JwtProperties jwtProperties;
-    private final NNHPrincipalFactory<? extends UserDetails> nnhPrincipalFactory;
+    private final BlackoutPrincipalFactory<? extends UserDetails> blackoutPrincipalFactory;
     // ========================================
     // TOKEN GENERATION
     // ========================================
@@ -53,7 +53,7 @@ public class JWTService {
      * @param userPrincipal the authenticated user
      * @return JWT access token string
      */
-    public String generateAccessToken(NNHUserPrincipal userPrincipal) {
+    public String generateAccessToken(BlackoutUserPrincipal userPrincipal) {
         long expirationMs = jwtProperties.getAccessTokenExp();
         String token = buildToken(userPrincipal, expirationMs, TOKEN_TYPE_ACCESS);
 
@@ -73,7 +73,7 @@ public class JWTService {
      * @param userPrincipal the authenticated user
      * @return JWT refresh token string
      */
-    public String generateRefreshToken(NNHUserPrincipal userPrincipal) {
+    public String generateRefreshToken(BlackoutUserPrincipal userPrincipal) {
         String role = extractRoleFromAuthorities(userPrincipal.getAuthorities());
         long expirationMs = jwtProperties.getRefreshTokenExp();
         String token = buildToken(userPrincipal, expirationMs, TOKEN_TYPE_REFRESH);
@@ -89,7 +89,7 @@ public class JWTService {
      * Builds a JWT token with all user principal information as claims.
      * Includes a unique JTI (JWT ID) for token revocation support.
      */
-    private String buildToken(NNHUserPrincipal userPrincipal, long expirationMs, String tokenType) {
+    private String buildToken(BlackoutUserPrincipal userPrincipal, long expirationMs, String tokenType) {
         Instant now = Instant.now();
         Instant expiration = now.plusMillis(expirationMs);
         var builder = Jwts.builder()
@@ -187,7 +187,7 @@ public class JWTService {
                 new SimpleGrantedAuthority(role),
                 new SimpleGrantedAuthority("ROLE_" + role));
 
-       return nnhPrincipalFactory.fromClaims(claims, authorities);
+       return blackoutPrincipalFactory.fromClaims(claims, authorities);
 
     }
 

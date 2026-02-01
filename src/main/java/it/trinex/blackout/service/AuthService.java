@@ -7,7 +7,7 @@ import it.trinex.blackout.exception.DuplicateKeyException;
 import it.trinex.blackout.exception.InvalidTokenException;
 import it.trinex.blackout.exception.UnauthorizedException;
 import it.trinex.blackout.model.AuthAccount;
-import it.trinex.blackout.model.NNHUserPrincipal;
+import it.trinex.blackout.model.BlackoutUserPrincipal;
 import it.trinex.blackout.properties.JwtProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,7 +47,7 @@ public class AuthService {
         }
 
         // Extract authenticated user principal
-        NNHUserPrincipal userPrincipal = (NNHUserPrincipal) authentication.getPrincipal();
+        BlackoutUserPrincipal userPrincipal = (BlackoutUserPrincipal) authentication.getPrincipal();
 
         // Generate tokens
         String accessToken = jwtService.generateAccessToken(userPrincipal);
@@ -80,7 +80,7 @@ public class AuthService {
         }
 
         // Extract user from refresh token (no database call needed!)
-        NNHUserPrincipal userPrincipal = (NNHUserPrincipal) jwtService.extractUserPrincipal(refreshToken);
+        BlackoutUserPrincipal userPrincipal = (BlackoutUserPrincipal) jwtService.extractUserPrincipal(refreshToken);
 
         // Generate new access token
         String newAccessToken = jwtService.generateAccessToken(userPrincipal);
@@ -104,7 +104,7 @@ public class AuthService {
 
     public AuthStatusResponseDTO getStatus() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !(authentication.getPrincipal() instanceof NNHUserPrincipal userPrincipal)) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof BlackoutUserPrincipal userPrincipal)) {
             throw new UnauthorizedException("User is not authenticated");
         }
 

@@ -11,7 +11,7 @@ import java.util.List;
 @Setter
 @Getter
 @Component
-@ConfigurationProperties(prefix = "nnh.cors")
+@ConfigurationProperties(prefix = "blackout.cors")
 public class CorsProperties {
 
     // Note: When allowCredentials is true, you cannot use "*" for allowedOrigins

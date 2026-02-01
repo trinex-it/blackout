@@ -1,4 +1,4 @@
-# NoNakersHere (NNH)
+# Blackout
 
 A Spring Boot starter that provides JWT-based authentication and authorization with minimal configuration.
 
@@ -33,12 +33,12 @@ Add the Gitea Maven repository to your project's `pom.xml`:
 
 ### 2. Add the Dependency
 
-Add the NNH dependency to your `pom.xml`:
+Add the Blackout dependency to your `pom.xml`:
 
 ```xml
 <dependency>
     <groupId>it.trinex</groupId>
-    <artifactId>nnh</artifactId>
+    <artifactId>blackout</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>
 ```
@@ -57,11 +57,11 @@ To add custom user data to your JWT tokens and access it in your controllers, fo
 
 #### Step 1: Create Your Custom Principal
 
-Extend `NNHUserPrincipal` and add custom fields. Override `getExtraClaims()` to include these fields in JWT tokens:
+Extend `BlackoutUserPrincipal` and add custom fields. Override `getExtraClaims()` to include these fields in JWT tokens:
 
 ```java
 @SuperBuilder
-public class MyUserPrincipal extends NNHUserPrincipal {
+public class MyUserPrincipal extends BlackoutUserPrincipal {
 
     private String codiceFiscale;
 
@@ -80,16 +80,16 @@ Implement the factory that reconstructs your custom principal from JWT claims:
 
 ```java
 @Component
-public class MyPrincipalFactory extends AbstractNNHPrincipalFactory<MyUserPrincipal> {
+public class MyPrincipalFactory extends AbstractBlackoutPrincipalFactory<MyUserPrincipal> {
 
     @Override
-    protected NNHUserPrincipal.NNHUserPrincipalBuilder<?, ?> getBuilder() {
+    protected BlackoutUserPrincipal.BlackoutUserPrincipalBuilder<?, ?> getBuilder() {
         return MyUserPrincipal.builder();
     }
 
     @Override
     protected void applyCustomFields(Claims claims, Collection<? extends GrantedAuthority> authorities,
-                                      NNHUserPrincipal.NNHUserPrincipalBuilder<?, ?> builder) {
+                                      BlackoutUserPrincipal.BlackoutUserPrincipalBuilder<?, ?> builder) {
         MyUserPrincipalBuilder<?, ?> myBuilder = (MyUserPrincipalBuilder<?, ?>) builder;
         // Repeat this for all the extra fields
         myBuilder.codiceFiscale(claims.get("codice_fiscale", String.class));
@@ -105,7 +105,7 @@ Create a typed `CurrentUserService` bean to access the authenticated user:
 
 ```java
 @Configuration
-public class NNHConfig {
+public class BlackoutConfig {
 
     @Bean
     public CurrentUserService<MyUserPrincipal> currentUserService() {
@@ -142,11 +142,11 @@ public class MyController {
 
 ### Configuring the Primary Data Source
 
-NNH manages its own authentication database separately. Your application needs its own primary data source for business entities.
+Blackout manages its own authentication database separately. Your application needs its own primary data source for business entities.
 
 #### Architecture
 
-- **NNH Auth Database**: Stores `AuthAccount` entities (configured via `nnh.datasource.*`)
+- **Blackout Auth Database**: Stores `AuthAccount` entities (configured via `blackout.datasource.*`)
 - **Primary Database**: Your application's business entities (configured via `spring.datasource.*`)
 
 #### Step 1: Configure Primary Data Source in application.yml
@@ -165,9 +165,9 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
 
-nnh:
+blackout:
   datasource:
-    url: jdbc:mysql://localhost:3306/auth  # NNH auth database (separate)
+    url: jdbc:mysql://localhost:3306/auth  # Blackout auth database (separate)
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -184,7 +184,7 @@ nnh:
 ```java
 @Configuration
 @EnableJpaRepositories(
-    basePackages = {"it.trinex.nnh_test"},  // Your repository package
+    basePackages = {"com.example.app"},  // Your repository package
     entityManagerFactoryRef = "primaryEntityManager",
     transactionManagerRef = "primaryTransactionManager"
 )
@@ -202,7 +202,7 @@ public class PrimaryJpaConfig {
 
         LocalContainerEntityManagerFactoryBean emf = new LocalContainerEntityManagerFactoryBean();
         emf.setDataSource(dataSource);
-        emf.setPackagesToScan("it.trinex.nnh_test.model");  // Your entity package
+        emf.setPackagesToScan("com.example.app.model");  // Your entity package
 
         JpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
         emf.setJpaVendorAdapter(vendorAdapter);
@@ -223,7 +223,7 @@ public class PrimaryJpaConfig {
 }
 ```
 
-**Why**: Creates a separate JPA context for your business entities, independent from NNH's authentication context.
+**Why**: Creates a separate JPA context for your business entities, independent from Blackout's authentication context.
 
 #### Step 3: Create Your Business Entities and Repositories
 
@@ -246,4 +246,4 @@ public interface UtenteRepo extends JpaRepository<Utente, Long> {
 
 **Why**: Standard Spring Data JPA entities and repositories work seamlessly with your primary data source.
 
-**Note**: All repositories in the package specified in `@EnableJpaRepositories` will use the primary data source. NNH repositories (`it.trinex.nnh.AuthAccountRepo`) automatically use the auth data source.
+**Note**: All repositories in the package specified in `@EnableJpaRepositories` will use the primary data source. Blackout repositories (`it.trinex.blackout.AuthAccountRepo`) automatically use the auth data source.

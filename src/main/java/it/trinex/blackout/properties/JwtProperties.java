@@ -4,7 +4,7 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @Data
-@ConfigurationProperties(prefix = "nnh.jwt")
+@ConfigurationProperties(prefix = "blackout.jwt")
 public class JwtProperties {
 
     /**

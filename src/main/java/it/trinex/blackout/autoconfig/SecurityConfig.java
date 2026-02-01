@@ -154,7 +154,7 @@ public class SecurityConfig {
                     corsProperties.getAllowedOrigins().contains("*")) {
                 throw new IllegalStateException(
                         "CORS configuration error: When allowCredentials is true, " +
-                        "allowedOrigins cannot be '*'. Please specify explicit origins in nnh.cors.allowedOrigins");
+                        "allowedOrigins cannot be '*'. Please specify explicit origins in blackout.cors.allowedOrigins");
             }
             configuration.setAllowCredentials(true);
         }

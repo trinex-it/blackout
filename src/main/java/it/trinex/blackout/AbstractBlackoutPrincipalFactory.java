@@ -1,23 +1,23 @@
 package it.trinex.blackout;
 
 import io.jsonwebtoken.Claims;
-import it.trinex.blackout.model.NNHUserPrincipal;
+import it.trinex.blackout.model.BlackoutUserPrincipal;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 
 /**
- * Abstract base class for NNHPrincipalFactory that handles all common field mappings.
+ * Abstract base class for BlackoutPrincipalFactory that handles all common field mappings.
  * Subclasses only need to implement custom fields by overriding applyCustomFields.
  *
- * @param <T> The type of UserDetails (must extend NNHUserPrincipal)
+ * @param <T> The type of UserDetails (must extend BlackoutUserPrincipal)
  */
-public abstract class AbstractNNHPrincipalFactory<T extends UserDetails> implements NNHPrincipalFactory<T> {
+public abstract class AbstractBlackoutPrincipalFactory<T extends UserDetails> implements BlackoutPrincipalFactory<T> {
 
     @Override
     public final T fromClaims(Claims claims, Collection<? extends GrantedAuthority> authorities) {
-        NNHUserPrincipal.NNHUserPrincipalBuilder<?, ?> builder = (NNHUserPrincipal.NNHUserPrincipalBuilder<?, ?>) getBuilder();
+        BlackoutUserPrincipal.BlackoutUserPrincipalBuilder<?, ?> builder = (BlackoutUserPrincipal.BlackoutUserPrincipalBuilder<?, ?>) getBuilder();
 
         // Handle all common fields
         builder.id(claims.get("uid", Long.class))
@@ -38,7 +38,7 @@ public abstract class AbstractNNHPrincipalFactory<T extends UserDetails> impleme
      * Returns the appropriate builder for the target type.
      * Subclasses must override this to return their custom builder.
      */
-    protected abstract NNHUserPrincipal.NNHUserPrincipalBuilder<?, ?> getBuilder();
+    protected abstract BlackoutUserPrincipal.BlackoutUserPrincipalBuilder<?, ?> getBuilder();
 
     /**
      * Apply custom fields to the builder.
@@ -49,7 +49,7 @@ public abstract class AbstractNNHPrincipalFactory<T extends UserDetails> impleme
      * @param builder the builder with common fields already applied
      */
     protected void applyCustomFields(Claims claims, Collection<? extends GrantedAuthority> authorities,
-                                      NNHUserPrincipal.NNHUserPrincipalBuilder<?, ?> builder) {
+                                      BlackoutUserPrincipal.BlackoutUserPrincipalBuilder<?, ?> builder) {
         // Default: no custom fields
     }
 }

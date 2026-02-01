@@ -11,7 +11,7 @@ import java.util.List;
  * Allows configuring permitAll and authenticated endpoints via application properties.
  */
 @Data
-@ConfigurationProperties(prefix = "nnh.filterchain")
+@ConfigurationProperties(prefix = "blackout.filterchain")
 public class FilterChainProperties {
 
     /**

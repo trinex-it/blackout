@@ -22,17 +22,17 @@ import org.springframework.context.annotation.Bean;
  * Auto-configuration for OpenAPI/Swagger documentation.
  *
  * This configuration provides automatic OpenAPI documentation setup with sensible defaults.
- * Can be customized via application properties (nnh.openapi.*) or by overriding beans.
+ * Can be customized via application properties (blackout.openapi.*) or by overriding beans.
  *
  * To disable OpenAPI documentation, set:
- * nnh.openapi.enabled=false
+ * blackout.openapi.enabled=false
  *
  * To customize, provide your own OpenAPI or GroupedOpenApi bean in your application.
  */
 @AutoConfiguration
 @ConditionalOnWebApplication
 @ConditionalOnClass(GroupedOpenApi.class)
-@ConditionalOnProperty(prefix = "nnh.openapi", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "blackout.openapi", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(OpenApiProperties.class)
 @RequiredArgsConstructor
 public class OpenApiConfig {

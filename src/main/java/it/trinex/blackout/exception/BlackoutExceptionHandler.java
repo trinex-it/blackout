@@ -15,16 +15,16 @@ import java.util.Map;
 @Slf4j
 @RestControllerAdvice
 @Order  // Lowest order priority by default
-public class NNHExceptionHandler {
+public class BlackoutExceptionHandler {
 
-    private void logNNHException(NNHException ex) {
+    private void logBlackoutException(BlackoutException ex) {
         log.error("{} occurred: status={}, category={}, description={}",
             ex.getClass().getSimpleName(), ex.getStatus(), ex.getCategory(), ex.getDescription());
     }
 
-    @ExceptionHandler(NNHException.class)
-    public ResponseEntity<ExceptionResponseDTO> handleNNHException(NNHException ex) {
-        logNNHException(ex);
+    @ExceptionHandler(BlackoutException.class)
+    public ResponseEntity<ExceptionResponseDTO> handleBlackoutException(BlackoutException ex) {
+        logBlackoutException(ex);
 
         ExceptionResponseDTO response = new ExceptionResponseDTO(ex);
 
@@ -33,7 +33,7 @@ public class NNHExceptionHandler {
 
     @ExceptionHandler(DuplicateKeyException.class)
     public ResponseEntity<ExceptionResponseDTO> handleDuplicateKeyException(DuplicateKeyException ex) {
-        logNNHException(ex);
+        logBlackoutException(ex);
 
         ExceptionResponseDTO response = new ExceptionResponseDTO(ex);
 

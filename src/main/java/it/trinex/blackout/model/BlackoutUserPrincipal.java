@@ -12,7 +12,7 @@ import java.util.Map;
 @Data
 @AllArgsConstructor
 @SuperBuilder
-public class NNHUserPrincipal implements UserDetails{
+public class BlackoutUserPrincipal implements UserDetails{
 
     Long id;
     Long userId;

@@ -4,8 +4,8 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @Data
-@ConfigurationProperties(prefix = "nnh.datasource")
-public class NNHDataSourceProperties {
+@ConfigurationProperties(prefix = "blackout.datasource")
+public class BlackoutDataSourceProperties {
 
     private String url;
 

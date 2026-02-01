@@ -10,7 +10,7 @@ import java.util.List;
  * Allows customization of API documentation through application.yml or application.properties.
  */
 @Data
-@ConfigurationProperties(prefix = "nnh.openapi")
+@ConfigurationProperties(prefix = "blackout.openapi")
 public class OpenApiProperties {
 
     /**
@@ -39,7 +39,7 @@ public class OpenApiProperties {
 
     /**
      * Group name for the OpenAPI documentation.
-     * Default: "nnh-api"
+     * Default: "blackout-api"
      */
     private String group = "test-api";
 

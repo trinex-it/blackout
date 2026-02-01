@@ -1,8 +1,8 @@
 package it.trinex.blackout.autoconfig;
 
-import it.trinex.blackout.AbstractNNHPrincipalFactory;
-import it.trinex.blackout.NNHPrincipalFactory;
-import it.trinex.blackout.model.NNHUserPrincipal;
+import it.trinex.blackout.AbstractBlackoutPrincipalFactory;
+import it.trinex.blackout.BlackoutPrincipalFactory;
+import it.trinex.blackout.model.BlackoutUserPrincipal;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -11,12 +11,12 @@ import org.springframework.security.core.userdetails.UserDetails;
 @AutoConfiguration
 public class JwtConfig {
     @Bean
-    @ConditionalOnMissingBean(NNHPrincipalFactory.class)
-    public NNHPrincipalFactory<UserDetails> defaultPrincipalFactory() {
-        return new AbstractNNHPrincipalFactory<UserDetails>() {
+    @ConditionalOnMissingBean(BlackoutPrincipalFactory.class)
+    public BlackoutPrincipalFactory<UserDetails> defaultPrincipalFactory() {
+        return new AbstractBlackoutPrincipalFactory<UserDetails>() {
             @Override
-            protected NNHUserPrincipal.NNHUserPrincipalBuilder<?, ?> getBuilder() {
-                return NNHUserPrincipal.builder();
+            protected BlackoutUserPrincipal.BlackoutUserPrincipalBuilder<?, ?> getBuilder() {
+                return BlackoutUserPrincipal.builder();
             }
         };
     }

@@ -1,6 +1,6 @@
 package it.trinex.blackout.autoconfig;
 
-import it.trinex.blackout.properties.NNHDataSourceProperties;
+import it.trinex.blackout.properties.BlackoutDataSourceProperties;
 import jakarta.persistence.EntityManagerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -20,15 +20,15 @@ import javax.sql.DataSource;
 @AutoConfiguration
 @EnableJpaRepositories(
         basePackages = "it.trinex.blackout",
-        entityManagerFactoryRef = "nnhEntityManager",
-        transactionManagerRef = "nnhTransactionManager"
+        entityManagerFactoryRef = "blackoutEntityManager",
+        transactionManagerRef = "blackoutTransactionManager"
 )
-@EnableConfigurationProperties(NNHDataSourceProperties.class)
-public class NNHDataSourceConfig {
+@EnableConfigurationProperties(BlackoutDataSourceProperties.class)
+public class BlackoutDataSourceConfig {
 
     @Bean
-    @ConditionalOnMissingBean(name = "nnhDataSource")
-    public DataSource nnhDataSource(NNHDataSourceProperties properties) {
+    @ConditionalOnMissingBean(name = "blackoutDataSource")
+    public DataSource blackoutDataSource(BlackoutDataSourceProperties properties) {
         return DataSourceBuilder.create()
                 .url(properties.getUrl())
                 .username(properties.getUsername())
@@ -38,15 +38,15 @@ public class NNHDataSourceConfig {
     }
 
     @Bean
-    @ConditionalOnMissingBean(name = "nnhEntityManager")
-    public LocalContainerEntityManagerFactoryBean nnhEntityManager(
-            @Qualifier("nnhDataSource") DataSource ds,
-            NNHDataSourceProperties properties
+    @ConditionalOnMissingBean(name = "blackoutEntityManager")
+    public LocalContainerEntityManagerFactoryBean blackoutEntityManager(
+            @Qualifier("blackoutDataSource") DataSource ds,
+            BlackoutDataSourceProperties properties
     ) {
         LocalContainerEntityManagerFactoryBean emf = new LocalContainerEntityManagerFactoryBean();
         emf.setDataSource(ds);
-        emf.setPackagesToScan("it.trinex.nnh.model");
-        emf.setPersistenceUnitName("nnhPU");
+        emf.setPackagesToScan("it.trinex.blackout.model");
+        emf.setPersistenceUnitName("blackoutPU");
 
         JpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
         emf.setJpaVendorAdapter(vendorAdapter);
@@ -72,9 +72,9 @@ public class NNHDataSourceConfig {
     }
 
     @Bean
-    @ConditionalOnMissingBean(name = "nnhTransactionManager")
-    public PlatformTransactionManager nnhTransactionManager(
-            @Qualifier("nnhEntityManager") EntityManagerFactory emf
+    @ConditionalOnMissingBean(name = "blackoutTransactionManager")
+    public PlatformTransactionManager blackoutTransactionManager(
+            @Qualifier("blackoutEntityManager") EntityManagerFactory emf
     ) {
         return new JpaTransactionManager(emf);
     }

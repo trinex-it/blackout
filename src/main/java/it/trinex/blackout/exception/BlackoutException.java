@@ -4,13 +4,13 @@ import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
 @Getter
-public class NNHException extends RuntimeException {
+public class BlackoutException extends RuntimeException {
 
     private final HttpStatus status;
     private final String category;
     private final String description;
 
-    public NNHException(HttpStatus status, String category, String description) {
+    public BlackoutException(HttpStatus status, String category, String description) {
         super(String.format("Category: %s, Description: %s", category, description));
         this.status = status;
         this.category = category;

@@ -6,7 +6,7 @@ import org.springframework.http.HttpStatus;
  * Exception thrown when a duplicate key constraint violation occurs.
  * Typically used when attempting to insert a record with a unique key that already exists.
  */
-public class DuplicateKeyException extends NNHException {
+public class DuplicateKeyException extends BlackoutException {
 
     /**
      * Creates a duplicate key exception with a custom description.

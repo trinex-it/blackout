@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * Allows customization of signup behavior through application.yml or application.properties.
  */
 @Data
-@ConfigurationProperties(prefix = "nnh.signup")
+@ConfigurationProperties(prefix = "blackout.signup")
 public class SignupProperties {
 
     /**

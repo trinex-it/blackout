@@ -1,8 +1,8 @@
-# NNH - No Nakers Here
+# blackout - No Nakers Here
 # Spring Security Starter Library Configuration
 
 # Filter Chain Security Configuration
-nnh:
+blackout:
   filterchain:
     # Endpoints that should be accessible without authentication (permitAll)
     # Supports Ant-style patterns: /api/**, /api/public/**
@@ -13,7 +13,7 @@ nnh:
     authenticated: []
 
 # Example configuration:
-# nnh:
+# blackout:
 #   filterchain:
 #     allowed:
 #       - "/api/public/**"

@@ -10,7 +10,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Schema(description = "Standard error response for NNH exceptions")
+@Schema(description = "Standard error response for Blackout exceptions")
 public class ExceptionResponseDTO {
 
     @Schema(description = "Timestamp when the exception occurred", example = "2025-01-30T10:00:00Z")
@@ -25,7 +25,7 @@ public class ExceptionResponseDTO {
     @Schema(description = "Human-readable error message", example = "Account is not active")
     private String message;
 
-    public ExceptionResponseDTO(NNHException e) {
+    public ExceptionResponseDTO(BlackoutException e) {
         this.timestamp = Instant.now();
         this.status = e.getStatus().value();
         this.category = e.getCategory();
