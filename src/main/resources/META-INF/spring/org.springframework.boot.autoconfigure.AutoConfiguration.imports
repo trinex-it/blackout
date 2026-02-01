@@ -1,3 +1,4 @@
 it.trinex.nnh.autoconfig.SecurityConfig
 it.trinex.nnh.autoconfig.JwtConfig
 it.trinex.nnh.autoconfig.NNHDataSourceConfig
+it.trinex.nnh.autoconfig.OpenApiConfig
