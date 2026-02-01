@@ -3,6 +3,7 @@ package it.trinex.nnh.autoconfig;
 import it.trinex.nnh.properties.CorsProperties;
 import it.trinex.nnh.properties.FilterChainProperties;
 import it.trinex.nnh.properties.JwtProperties;
+import it.trinex.nnh.properties.SignupProperties;
 import it.trinex.nnh.security.JwtAuthenticationFilter;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +35,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
-@EnableConfigurationProperties({CorsProperties.class, JwtProperties.class, FilterChainProperties.class})
+@EnableConfigurationProperties({CorsProperties.class, JwtProperties.class, FilterChainProperties.class, SignupProperties.class})
 @ConditionalOnBean({JwtAuthenticationFilter.class, UserDetailsService.class})
 public class SecurityConfig {
 
@@ -42,6 +43,7 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
     private final CorsProperties corsProperties;
     private final FilterChainProperties filterChainProperties;
+    private final SignupProperties signupProperties;
 
     /**
      * Configures the security filter chain with JWT authentication.
@@ -67,6 +69,10 @@ public class SecurityConfig {
                     auth.requestMatchers("/api/jwt/**").permitAll();
                     // Swagger/OpenAPI endpoints - no authentication required (dev only)
                     auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll();
+
+                    if(signupProperties.isEnabled()){
+                        auth.requestMatchers("/api/signup").permitAll();
+                    }
 
                     // Custom allowed endpoints from properties
                     if (filterChainProperties.getAllowed() != null) {

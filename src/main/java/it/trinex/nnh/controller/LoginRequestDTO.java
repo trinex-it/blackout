@@ -8,12 +8,12 @@ import lombok.Data;
 @Data
 @Schema(description = "Login request with email and password credentials")
 public class LoginRequestDTO {
-    @Schema(description = "User's email address", example = "user@example.com", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "User's email address", example = "hello@andrewfly.it", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "Email is required")
     @Email(message = "Email must be valid")
     private String email;
 
-    @Schema(description = "User's password", example = "SecurePassword123!", requiredMode = Schema.RequiredMode.REQUIRED, format = "password")
+    @Schema(description = "User's password", example = "odioinegri", requiredMode = Schema.RequiredMode.REQUIRED, format = "password")
     @NotBlank(message = "Password is required")
     private String password;
 
