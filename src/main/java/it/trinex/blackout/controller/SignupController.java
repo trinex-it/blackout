@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 @RestController
 @RequestMapping("/api/signup")
-@ConditionalOnProperty(name = "blackout.signup.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "blackout.signup.enabled", havingValue = "true", matchIfMissing = false)
 @RequiredArgsConstructor
 @Tag(name = "Signup", description = "Endpoints for default user registration")
 class SignupController {
