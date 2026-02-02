@@ -62,7 +62,7 @@ public class AuthService {
         log.info("User '{}' logged in successfully", subject);
 
         // Determine if we should set the refresh token
-        long refreshTokenMaxAge = rememberMe ? Duration.ofMillis(refreshTokenExpirationMs).toSeconds() : jwtProperties.getDefaultRefreshExpirationNoRemember();
+        long refreshTokenMaxAge = rememberMe ? Duration.ofMillis(refreshTokenExpirationMs).toSeconds() : jwtProperties.getRefreshTokenExpNoRemember();
 
         return AuthResponseDTO.builder()
             .access_token(accessToken)
