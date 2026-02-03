@@ -1,15 +1,12 @@
 package it.trinex.blackout.properties;
 
-import lombok.Getter;
+import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
-
-@Getter
-@Component
+@Data
 @ConfigurationProperties(prefix = "blackout")
 public class BlackoutProperties {
 
-    private final String baseUrl = "/api";
+    private String baseUrl = "/api";
 
 }

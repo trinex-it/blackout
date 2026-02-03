@@ -15,9 +15,9 @@ public class JwtProperties {
 
     /**
      * Access token expiration time in milliseconds.
-     * Default: 7 days (604800000 ms)
+     * Default: 15 minutes (900000 ms)
      */
-    private Long accessTokenExp = 604800000L;
+    private Long accessTokenExp = 900000L;
 
     /**
      * Refresh token expiration time in milliseconds.

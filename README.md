@@ -2,6 +2,27 @@
 
 A Spring Boot starter that provides JWT-based authentication and authorization with minimal configuration.
 
+## Table of Contents
+
+- [Features](#features)
+  - [Authentication Endpoints](#authentication-endpoints)
+  - [User Registration](#user-registration)
+  - [Custom User Registration](#custom-user-registration)
+  - [Security Configuration](#security-configuration)
+  - [Multi-Database Architecture](#multi-database-architecture)
+  - [Custom User Principals](#custom-user-principals)
+  - [JWT Configuration](#jwt-configuration)
+  - [OpenAPI Integration](#openapi-integration)
+  - [Auto-Configuration](#auto-configuration)
+- [Installation](#installation)
+  - [Add the Maven Repository](#1-add-the-maven-repository)
+  - [Add the Dependency](#2-add-the-dependency)
+  - [Minimum Requirements](#3-minimum-requirements)
+- [Configuration](#configuration)
+  - [Defining and Using a Custom User Principal](#defining-and-using-a-custom-user-principal)
+  - [Minimal Configuration](#minimal-configuration)
+  - [Complete Configuration Example](#complete-configuration-example)
+
 ## Features
 
 **Base URL**: All Blackout endpoints are prefixed with `/api` by default. Configure the base path via `blackout.base-url` property.
@@ -87,6 +108,205 @@ Optional basic registration endpoint (configurable via `blackout.signup.enabled`
 **Response**: HTTP 201 Created (empty body)
 
 **Note**: After registration, use the login endpoint to obtain authentication tokens.
+
+### Custom User Registration
+
+While Blackout provides a basic signup endpoint, production applications typically require custom registration logic that handles business-specific data and cross-database operations. This section explains how to implement a complete custom signup flow.
+
+#### Why Custom Signup?
+
+Blackout's default signup endpoint only creates an `AuthAccount` in the auth database. For real-world applications, you typically need to:
+
+1. **Collect additional user data** (tax code, address, preferences, etc.)
+2. **Create business entities** in your primary database
+3. **Link authentication and business data** via foreign key relationships
+4. **Handle cross-database transactions** manually (different databases = different transaction managers)
+
+#### Architecture
+
+The custom signup flow involves two databases:
+- **Auth Database**: Stores `AuthAccount` (email, password hash)
+- **Primary Database**: Stores your business entity (e.g., `User`, `Customer`) with an `authAccountId` foreign key
+
+#### Step 1: Create Custom Request DTO
+
+Define a DTO that collects all the data you need for registration:
+
+```java
+@Data
+public class MySignupRequestDTO {
+
+    @NotBlank
+    @Email
+    private String email;
+
+    @NotBlank
+    @Size(min = 8, max = 100)
+    private String password;
+
+    @NotBlank
+    private String confirmPassword;
+
+    @NotBlank
+    private String firstName;
+
+    @NotBlank
+    private String lastName;
+
+    @NotBlank
+    private String taxCode; // Business-specific field
+}
+```
+
+**Why**: Collects both authentication credentials (email/password) and business data (name, tax code) in a single request.
+
+#### Step 2: Create the Signup Controller
+
+Create a REST endpoint that handles the signup request:
+
+```java
+@RestController
+@RequestMapping("/api/user")
+@RequiredArgsConstructor
+public class UserController {
+
+    private final UserService userService;
+
+    @PostMapping("/signup")
+    public ResponseEntity<Void> signup(@RequestBody @Valid MySignupRequestDTO dto) {
+        userService.signup(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+}
+```
+
+**Why**: Provides a clean REST API endpoint for user registration.
+
+#### Step 3: Implement the Signup Service with Manual Transaction Management
+
+The service must handle two separate database operations as a single unit of work:
+
+```java
+@Service
+@RequiredArgsConstructor
+public class UserService {
+    private final AuthService authService;
+    private final AuthAccountRepo authAccountRepo;
+    private final PasswordEncoder passwordEncoder;
+    private final UserRepo userRepo; // Your business repository
+
+    @Transactional
+    public void signup(MySignupRequestDTO request) {
+        AuthAccount authAccount = null;
+
+        try {
+            // 1. Create AuthAccount in auth database
+            authAccount = authService.registerAuthAccount(
+                AuthAccount.builder()
+                    .firstName(request.getFirstName())
+                    .lastName(request.getLastName())
+                    .username(request.getEmail())
+                    .passwordHash(passwordEncoder.encode(request.getPassword()))
+                    .isActive(true)
+                    .build()
+            );
+
+            // 2. Create business entity in primary database
+            User user = User.builder()
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .email(request.getEmail())
+                .taxCode(request.getTaxCode())
+                .authAccountId(authAccount.getId()) // ← CRITICAL: Link to AuthAccount
+                .build();
+
+            userRepo.save(user);
+
+        } catch (Exception e) {
+            // 3. Manual rollback: delete AuthAccount if User creation fails
+            if (authAccount != null && authAccount.getId() != null) {
+                authAccountRepo.deleteById(authAccount.getId());
+            }
+            throw e; // Re-throw to let caller handle the error
+        }
+    }
+}
+```
+
+**Key Points**:
+
+1. **`authService.registerAuthAccount()`**: Blackout's helper method to create `AuthAccount` with validation
+2. **`authAccountId` foreign key**: Links your business entity to the auth account - this is how you'll load user data during login
+3. **Manual rollback**: Since we're dealing with two databases with separate transaction managers, we must manually clean up the `AuthAccount` if the business entity creation fails
+4. **`@Transactional`**: Only applies to the primary database transaction. The auth database operation happens in its own transaction via `AuthService`.
+
+#### Step 4: Update UserDetailsService to Use the Foreign Key
+
+When implementing your custom `UserDetailsService` (see "Defining and Using a Custom User Principal" section), use the `authAccountId` to load the business entity:
+
+```java
+@Service
+@RequiredArgsConstructor
+@Primary // IMPORTANT: Override default implementation
+public class MyUserDetailsService implements UserDetailsService {
+
+    private final AuthAccountRepo authAccountRepo;
+    private final UserRepo userRepo;
+
+    @Override
+    public BlackoutUserPrincipal loadUserByUsername(String username) throws UsernameNotFoundException {
+        // 1. Load AuthAccount from auth database
+        AuthAccount authAccount = authAccountRepo.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException(username));
+
+        // 2. Load business entity using authAccountId foreign key
+        User user = userRepo.findByAuthAccountId(authAccount.getId())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found in primary database"));
+
+        // 3. Build custom principal with data from both databases
+        return MyUserPrincipal.builder()
+                .id(authAccount.getId())
+                .userId(user.getId())
+                .username(authAccount.getUsername())
+                .password(authAccount.getPasswordHash())
+                .authorities(user.getRolesAsAuthorities())
+                .taxCode(user.getTaxCode()) // Custom field from business entity
+                .build();
+    }
+}
+```
+
+**Why**: Loads complete user data from both databases during login, stores it in JWT, eliminates cross-database queries on subsequent requests.
+
+#### Step 5: Configure Public Access for Signup Endpoint
+
+Add your custom signup endpoint to the allowed endpoints list:
+
+```yaml
+blackout:
+  filterchain:
+    allowed:
+      - "/user/**" # Allow access to custom signup endpoint
+```
+
+**Or** for more granular control:
+
+```yaml
+blackout:
+  filterchain:
+    allowed:
+      - "/user/signup" # Allow only signup endpoint
+```
+
+#### Cross-Database Transaction Considerations
+
+When working with separate databases:
+
+1. **No distributed transactions**: Spring's `@Transactional` only works for a single database. Two databases = two separate transactions.
+
+2. **Manual rollback pattern**: If the second operation fails, manually undo the first operation (as shown in the try-catch block above).
+
+3. **Cleanup jobs**: Consider implementing a cleanup job that removes orphaned `AuthAccount` records (auth accounts without corresponding business entities).
 
 ### Security Configuration
 
@@ -176,12 +396,12 @@ Extend `BlackoutUserPrincipal` and add custom fields. Override `getExtraClaims()
 @SuperBuilder
 public class MyUserPrincipal extends BlackoutUserPrincipal {
 
-    private String codiceFiscale;
+    private String taxCode;
 
     @Override
     public Map<String, Object> getExtraClaims() {
         return Map.of(
-                "codice_fiscale", codiceFiscale
+                "tax_code", taxCode
         );
     }
 }
@@ -236,12 +456,13 @@ public class BlackoutConfig {
 To load your custom principal from the database during authentication, implement a `UserDetailsService` that queries both the auth database and your primary database:
 
 ```java
+
 @Service
 @RequiredArgsConstructor
 @Primary // <-- VERY IMPORTANT (Bean conflicts with default implementation if not set)
 public class MyUserDetailsService implements UserDetailsService {
 
-    private final UtenteRepo utenteRepo;
+    private final UserRepo userRepo;
     private final AuthAccountRepo authAccountRepo;
 
     @Override
@@ -256,7 +477,7 @@ public class MyUserDetailsService implements UserDetailsService {
         }
 
         // 3. Load your business entity from primary database
-        MyUser user = utenteRepo.findByAuthAccountId(authAccount.getId())
+        MyUser user = userRepo.findByAuthAccountId(authAccount.getId())
                 .orElseThrow(() -> new UsernameNotFoundException(username));
 
         // 4. Build authorities
@@ -268,13 +489,13 @@ public class MyUserDetailsService implements UserDetailsService {
         return MyUserPrincipal.builder()
                 // Default Blackout fields
                 .id(authAccount.getId())
-                .userId(utente.getId())
+                .userId(user.getId())
                 .authorities(authorities)
                 .username(username)
                 .password(authAccount.getPasswordHash())
                 // Your custom fields
-                .codiceFiscale(utente.getCodiceFiscale())
-                .piattoPreferito(utente.getPiattoPreferito())
+                .taxCode(user.getTaxCode())
+                .piattoPreferito(user.getPiattoPreferito())
                 .build();
     }
 }
@@ -303,120 +524,128 @@ public class MyController {
     @GetMapping("/my-tax-code")
     public String getTaxCode() {
         MyUserPrincipal user = currentUserService.getCurrentPrincipal();
-        return user.getCodiceFiscale();
+        return user.getTaxCode();
     }
 }
 ```
 
 **Why**: Provides type-safe, direct access to your custom authenticated user throughout your application.
 
-### Configuring the Primary Data Source
+### Minimal Configuration
 
-Blackout manages its own authentication database separately. Your application needs its own primary data source for business entities.
-
-#### Architecture
-
-- **Blackout Auth Database**: Stores `AuthAccount` entities (configured via `blackout.datasource.*`)
-- **Primary Database**: Your application's business entities (configured via `spring.datasource.*`)
-
-#### Step 1: Configure Primary Data Source in application.yml
+For a quick setup with sensible defaults, you only need to configure these required properties in your `application.yml`:
 
 ```yaml
 spring:
   datasource:
+    url: jdbc:mysql://localhost:3306/app # Primary database URL
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
-    jdbc-url: jdbc:mysql://localhost:3306/app  # Your business database
-  jpa:
-    hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
 
 blackout:
+  parent: # !!REQUIRED!! Config to access and configure primary datasource
+    datasource:
+      repository: com.my.app.repository # JPA repositories package
+      model: com.my.app.model # JPA models package
+
+  jwt: # !!REQUIRED!! JWT configuration
+    secret: myverylongsecretthatshouldabsolutelybearandomgeneratedstring # JWT secret key (should be base64-encoded in production)
+
+  openapi:
+    paths-to-match:
+      - "/api/**"
+```
+
+**Defaults applied**: Blackout will automatically use the primary application database for authentication if `blackout.datasource.*` is not configured, use `/api` as base URL, enable CORS with open access.
+
+**Publicly accessible endpoints** (no authentication required):
+- `{base-url}/auth/**` - Authentication endpoints (login, refresh, status)
+- `/error` - Error page
+- `/swagger-ui/**`, `/v3/api-docs/**`, `/swagger-ui.html` - Swagger/OpenAPI documentation
+- `{base-url}/signup` - User registration (only if `blackout.signup.enabled=true`)
+
+### Complete Configuration Example
+
+Here's a complete `application.yml` example showing all Blackout configuration options:
+
+```yaml
+server:
+  port: 8090 # Server port [8080]
+
+spring:
+  application:
+    name: blackout-test # Application name
   datasource:
-    url: jdbc:mysql://localhost:3306/auth  # Blackout auth database (separate)
-    username: root
-    password: root
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    jpa:
-      hibernate:
-        ddl-auto: update
-      dialect: org.hibernate.dialect.MySQLDialect
+    url: jdbc:mysql://localhost:3306/app # Primary database URL
+    username: root # Database username
+    password: root # Database password
+    driver-class-name: com.mysql.cj.jdbc.Driver # MySQL JDBC driver
+
+blackout:
+  base-url: /api # Base URL for all API endpoints [/api]
+
+  # !!REQUIRED!! Config to access and configure primary datasource
+  parent:
+    datasource:
+      repository: com.my.app.repository # JPA repositories package
+      model: com.my.app.model # JPA models package
+      jpaProperties:
+        hibernate.hbm2ddl.auto: update # Hibernate DDL mode [update]
+        hibernate.format_sql: true # Format SQL queries [true]
+
+  # Config for alternative auth database
+  datasource:
+    url: jdbc:mysql://localhost:3306/auth # Auth database URL
+    username: root # Auth database username
+    password: root # Auth database password
+    driver-class-name: com.mysql.cj.jdbc.Driver # MySQL JDBC driver for auth database
+
+  # !!REQUIRED!! JWT configuration
+  jwt:
+    access-token-exp: 900000 # Expiration time for the access token (15 min) [900000 (15 min)]
+    refresh-token-exp-no-remember: 3600000 # Refresh token expiration when "remember me" is false (1 hour) [3600000 (1 hour)]
+    refresh-token-exp: 2592000000 # Refresh token expiration when "remember me" is true (30 days) [2592000000 (30 days)]
+    secret: myverylongsecretthatshouldabsolutelybearandomgeneratedstring # JWT secret key (should be base64-encoded in production)
+
+  # CORS configuration
+  cors:
+    allow-credentials: false # Allow credentials (cookies) in CORS requests [false]
+    allowed-headers: # Allowed headers in CORS requests [*]
+      - "*"
+    allowed-methods: # Allowed HTTP methods in CORS requests [*]
+      - "*"
+    allowed-origins: # Allowed origins for CORS (use specific domains in production) [*]
+      - "*"
+
+  # Security filter chain rules
+  filterchain:
+    allowed: # Endpoints accessible without authentication []
+      - "/everyone/**"
+    authenticated: # Endpoints requiring authentication []
+      - "/showidplease/**"
+
+  # OpenAPI/Swagger configuration
+  openapi:
+    enabled: true # Enable Swagger/OpenAPI documentation [true]
+    title: "Blackout Test API" # API title
+    description: "Test application for Blackout Spring Boot starter" # API description
+    version: "1.0.0" # API version
+    contact-name: "Trinex Development Team" # Contact name
+    contact-email: "hello@trinex.it" # Contact email
+    license-name: "Apache 2.0" # License name
+    license-url: "https://www.apache.org/licenses/LICENSE-2.0.html" # License URL
+    paths-to-match: # !!REQUIRED!! Paths to include in OpenAPI documentation 
+      - "/api/**"
+
+  # User registration configuration
+  signup:
+    enabled: false # Enable default user registration endpoint [false]
+    default-role: USER # Default role for new users [USER]
 ```
 
-**Why**: Separates authentication data from business data for cleaner architecture and security isolation.
-
-#### Step 2: Create Primary JPA Configuration
-
-```java
-@Configuration
-@EnableJpaRepositories(
-    basePackages = {"com.example.app"},  // Your repository package
-    entityManagerFactoryRef = "primaryEntityManager",
-    transactionManagerRef = "primaryTransactionManager"
-)
-public class PrimaryJpaConfig {
-
-    @Bean(name = "primaryDataSource")
-    @ConfigurationProperties(prefix = "spring.datasource")
-    public DataSource dataSource() {
-        return DataSourceBuilder.create().build();
-    }
-
-    @Bean(name = "primaryEntityManager")
-    public LocalContainerEntityManagerFactoryBean primaryEntityManager(
-            @Qualifier("primaryDataSource") DataSource dataSource) {
-
-        LocalContainerEntityManagerFactoryBean emf = new LocalContainerEntityManagerFactoryBean();
-        emf.setDataSource(dataSource);
-        emf.setPackagesToScan("com.example.app.model");  // Your entity package
-
-        JpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
-        emf.setJpaVendorAdapter(vendorAdapter);
-
-        // JPA properties
-        emf.getJpaPropertyMap().put("hibernate.hbm2ddl.auto", "update");
-        emf.getJpaPropertyMap().put("hibernate.dialect", "org.hibernate.dialect.MariaDBDialect");
-        emf.getJpaPropertyMap().put("hibernate.format_sql", "true");
-
-        return emf;
-    }
-
-    @Bean(name = "primaryTransactionManager")
-    public PlatformTransactionManager primaryTransactionManager(
-            @Qualifier("primaryEntityManager") EntityManagerFactory emf) {
-        return new JpaTransactionManager(emf);
-    }
-}
-```
-
-**Why**: Creates a separate JPA context for your business entities, independent from Blackout's authentication context.
-
-#### Step 3: Create Your Business Entities and Repositories
-
-```java
-@Entity
-@Data
-public class MyUser {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false)
-    private String role;
-
-    private String nome;
-    private String email;
-}
-
-@Repository
-public interface UtenteRepo extends JpaRepository<Utente, Long> {
-}
-```
-
-**Why**: Standard Spring Data JPA entities and repositories work seamlessly with your primary data source.
-
-**Note**: All repositories in the package specified in `@EnableJpaRepositories` will use the primary data source. Blackout repositories (`it.trinex.blackout.AuthAccountRepo`) automatically use the auth data source.
+**Important Notes**:
+- `blackout.parent.datasource.repository` and `blackout.parent.datasource.model` are **required** for Blackout to configure your primary data source
+- `blackout.datasource.*` configures the separate authentication database
+- `blackout.jwt.secret` should be a strong, randomly generated string in production (preferably base64-encoded)
+- Use specific domains instead of `"*"` for `blackout.cors.allowed-origins` in production
