@@ -1,109 +1,35 @@
 package it.trinex.blackout.autoconfig;
 
 import it.trinex.blackout.properties.BlackoutDataSourceProperties;
-import jakarta.persistence.EntityManagerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
+import it.trinex.blackout.properties.ParentDatasourceProperties;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.jdbc.DataSourceBuilder;
-import org.springframework.context.annotation.Bean;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
-import org.springframework.orm.jpa.JpaTransactionManager;
-import org.springframework.orm.jpa.JpaVendorAdapter;
-import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
-import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
-import org.springframework.transaction.PlatformTransactionManager;
 
-import javax.sql.DataSource;
-
+/**
+ * Orchestration configuration for dual-datasource setup.
+ *
+ * This class imports and coordinates:
+ * - BlackoutLibraryDatasourceConfig: datasource for the Blackout library itself
+ * - ParentApplicationDatasourceConfig: datasource for the parent application (optional)
+ *
+ * Behavior:
+ * - Library datasource is always created (either dedicated or shared)
+ * - Parent datasource is created only when repository/model properties are configured
+ * - All beans are @ConditionalOnMissingBean, allowing full user override
+ *
+ * @see BlackoutLibraryDatasourceConfig
+ * @see ParentApplicationDatasourceConfig
+ */
 @AutoConfiguration
-@EnableJpaRepositories(
-        basePackages = "it.trinex.blackout",
-        entityManagerFactoryRef = "blackoutEntityManager",
-        transactionManagerRef = "blackoutTransactionManager"
-)
-@EnableConfigurationProperties(BlackoutDataSourceProperties.class)
+@ImportAutoConfiguration({
+        BlackoutLibraryDatasourceConfig.class,
+        ParentApplicationDatasourceConfig.class
+})
+@EnableConfigurationProperties({
+        BlackoutDataSourceProperties.class,
+        ParentDatasourceProperties.class
+})
 public class BlackoutDataSourceConfig {
-
-    @Bean
-    @ConditionalOnMissingBean(name = "blackoutDataSource")
-    public DataSource blackoutDataSource(BlackoutDataSourceProperties properties) {
-        return DataSourceBuilder.create()
-                .url(properties.getUrl())
-                .username(properties.getUsername())
-                .password(properties.getPassword())
-                .driverClassName(properties.getDriverClassName())
-                .build();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(name = "blackoutEntityManager")
-    public LocalContainerEntityManagerFactoryBean blackoutEntityManager(
-            @Qualifier("blackoutDataSource") DataSource ds,
-            BlackoutDataSourceProperties properties
-    ) {
-        LocalContainerEntityManagerFactoryBean emf = new LocalContainerEntityManagerFactoryBean();
-        emf.setDataSource(ds);
-        emf.setPackagesToScan("it.trinex.blackout.model");
-        emf.setPersistenceUnitName("blackoutPU");
-
-        JpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
-        emf.setJpaVendorAdapter(vendorAdapter);
-
-        // Get Hibernate dialect from properties or auto-detect from driver
-        String dialect = properties.getJpa().getHibernate().getDialect();
-        if (dialect == null || dialect.isEmpty()) {
-            dialect = detectDialect(properties.getDriverClassName());
-        }
-
-        // Get ddl-auto from properties or use default
-        String ddlAuto = properties.getJpa().getHibernate().getDdlAuto();
-        if (ddlAuto == null || ddlAuto.isEmpty()) {
-            ddlAuto = "update";
-        }
-
-        // Set JPA properties
-        emf.getJpaPropertyMap().put("hibernate.hbm2ddl.auto", ddlAuto);
-        emf.getJpaPropertyMap().put("hibernate.dialect", dialect);
-        emf.getJpaPropertyMap().put("hibernate.format_sql", "true");
-
-        return emf;
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(name = "blackoutTransactionManager")
-    public PlatformTransactionManager blackoutTransactionManager(
-            @Qualifier("blackoutEntityManager") EntityManagerFactory emf
-    ) {
-        return new JpaTransactionManager(emf);
-    }
-
-    /**
-     * Auto-detect Hibernate dialect based on JDBC driver class name
-     */
-    private String detectDialect(String driverClassName) {
-        if (driverClassName == null) {
-            return "org.hibernate.dialect.PostgreSQLDialect";
-        }
-
-        if (driverClassName.contains("postgresql")) {
-            return "org.hibernate.dialect.PostgreSQLDialect";
-        } else if (driverClassName.contains("mysql")) {
-            return "org.hibernate.dialect.MySQLDialect";
-        } else if (driverClassName.contains("h2")) {
-            return "org.hibernate.dialect.H2Dialect";
-        } else if (driverClassName.contains("hsql")) {
-            return "org.hibernate.dialect.HSQLDialect";
-        } else if (driverClassName.contains("mariadb")) {
-            return "org.hibernate.dialect.MariaDBDialect";
-        } else if (driverClassName.contains("oracle")) {
-            return "org.hibernate.dialect.OracleDialect";
-        } else if (driverClassName.contains("mssql") || driverClassName.contains("sqlserver")) {
-            return "org.hibernate.dialect.SQLServerDialect";
-        }
-
-        // Default to PostgreSQL
-        return "org.hibernate.dialect.PostgreSQLDialect";
-    }
+    // Orchestration only - all logic moved to specialized configs
 }
