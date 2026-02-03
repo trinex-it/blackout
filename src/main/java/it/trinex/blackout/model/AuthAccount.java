@@ -17,9 +17,6 @@ public class AuthAccount {
     private Long id;
 
     @Column(nullable = false)
-    private String role;
-
-    @Column(nullable = false)
     private String firstName;
     @Column(nullable = false)
     private String lastName;

@@ -24,6 +24,7 @@ public class CurrentUserService<P extends BlackoutUserPrincipal> {
 //                () -> new UsernameNotFoundException("User " + userPrincipal.getUsername() + " not found")
 //        );
 //    }
+
     public P getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof BlackoutUserPrincipal userPrincipal)) {

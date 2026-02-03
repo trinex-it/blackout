@@ -1,4 +1,4 @@
-package it.trinex.blackout.controller;
+package it.trinex.blackout.dto.response;
 
 import lombok.Builder;
 

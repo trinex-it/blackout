@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import it.trinex.blackout.dto.request.SignupRequestDTO;
 import it.trinex.blackout.exception.BlackoutException;
 import it.trinex.blackout.model.AuthAccount;
 import it.trinex.blackout.properties.SignupProperties;
@@ -39,7 +40,7 @@ class SignupController {
                     content = @Content(schema = @Schema(implementation = AuthAccount.class))),
             @ApiResponse(responseCode = "400", description = "Validation failed or passwords don't match")
     })
-    public ResponseEntity<AuthAccount> signup(@Valid @RequestBody SignupRequestDTO request) {
+    public ResponseEntity<Void> signup(@Valid @RequestBody SignupRequestDTO request) {
         // Validate password confirmation
         if (!request.getPassword().equals(request.getConfirmPassword())) {
             throw new BlackoutException(HttpStatus.BAD_REQUEST, "PASSWORDS_DO_NOT_MATCH", "Passwords do not match");
@@ -53,7 +54,8 @@ class SignupController {
         authAccount.setLastName("");
         authAccount.setActive(true);
 
-        AuthAccount saved = authService.registerAuthAccount(authAccount);
-        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        authService.registerAuthAccount(authAccount);
+
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }

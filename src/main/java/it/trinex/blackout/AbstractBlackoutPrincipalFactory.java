@@ -21,15 +21,13 @@ public abstract class AbstractBlackoutPrincipalFactory<T extends UserDetails> im
 
         // Handle all common fields
         builder.id(claims.get("uid", Long.class))
+                .authorities(authorities)
                 .userId(claims.get("user_id", Long.class))
                 .username(claims.getSubject())
-                .password(null)
-                .firstName(claims.get("firstname", String.class))
-                .lastName(claims.get("lastname", String.class))
-                .authorities(authorities);
+                .password(null);
 
         // Let subclasses apply custom fields
-        applyCustomFields(claims, authorities, builder);
+        applyCustomFields(claims, builder);
 
         return (T) builder.build();
     }
@@ -45,10 +43,9 @@ public abstract class AbstractBlackoutPrincipalFactory<T extends UserDetails> im
      * Subclasses override this to add their specific fields.
      *
      * @param claims the JWT claims
-     * @param authorities the granted authorities
      * @param builder the builder with common fields already applied
      */
-    protected void applyCustomFields(Claims claims, Collection<? extends GrantedAuthority> authorities,
+    protected void applyCustomFields(Claims claims,
                                       BlackoutUserPrincipal.BlackoutUserPrincipalBuilder<?, ?> builder) {
         // Default: no custom fields
     }

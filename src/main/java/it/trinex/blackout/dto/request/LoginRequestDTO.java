@@ -1,4 +1,4 @@
-package it.trinex.blackout.controller;
+package it.trinex.blackout.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;

@@ -1,4 +1,4 @@
-package it.trinex.blackout.controller;
+package it.trinex.blackout.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -11,8 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class AuthStatusResponseDTO {
-    @JsonProperty(value = "isAuthenticated")
-    private boolean authenticated;
     private Long id;
     private String username;
     private String role;

@@ -31,15 +31,15 @@ public class JWTService {
     private static final String TOKEN_TYPE_ACCESS = "ACCESS";
     private static final String TOKEN_TYPE_REFRESH = "REFRESH";
 
-    private static final String CLAIM_UID = "uid";
+    private static final String AUTH_ID = "auth_id";
     private static final String CLAIM_USERID = "user_id";
     private static final String CLAIM_ROLE = "role";
-    private static final String CLAIM_FIRSTNAME = "firstname";
-    private static final String CLAIM_LASTNAME = "lastname";
 
 
     private final JwtProperties jwtProperties;
     private final BlackoutPrincipalFactory<? extends UserDetails> blackoutPrincipalFactory;
+
+
     // ========================================
     // TOKEN GENERATION
     // ========================================
@@ -96,11 +96,9 @@ public class JWTService {
                 .subject(userPrincipal.getUsername())
                 .id(UUID.randomUUID().toString())
                 .claim(TOKEN_TYPE_CLAIM, tokenType)
-                .claim(CLAIM_UID, userPrincipal.getId())
+                .claim(AUTH_ID, userPrincipal.getId())
                 .claim(CLAIM_USERID, userPrincipal.getUserId())
                 .claim(CLAIM_ROLE, extractRoleFromAuthorities(userPrincipal.getAuthorities()))
-                .claim(CLAIM_FIRSTNAME, userPrincipal.getFirstName())
-                .claim(CLAIM_LASTNAME, userPrincipal.getLastName())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256);

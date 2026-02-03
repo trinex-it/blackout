@@ -1,8 +1,8 @@
 package it.trinex.blackout.service;
 
 import it.trinex.blackout.AuthAccountRepo;
-import it.trinex.blackout.controller.AuthResponseDTO;
-import it.trinex.blackout.controller.AuthStatusResponseDTO;
+import it.trinex.blackout.dto.response.AuthResponseDTO;
+import it.trinex.blackout.dto.response.AuthStatusResponseDTO;
 import it.trinex.blackout.exception.DuplicateKeyException;
 import it.trinex.blackout.exception.InvalidTokenException;
 import it.trinex.blackout.exception.UnauthorizedException;
@@ -109,13 +109,10 @@ public class AuthService {
         }
 
         return AuthStatusResponseDTO.builder()
-                .authenticated(true)
                 .id(userPrincipal.getId())
                 .username(userPrincipal.getUsername())
                 .role(userPrincipal.getAuthorities().stream().findFirst().map(Object::toString)
                         .orElse("UNKNOWN"))
-                .firstName(userPrincipal.getFirstName())
-                .lastName(userPrincipal.getLastName())
                 .build();
     }
 
