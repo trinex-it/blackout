@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Primary;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
 import org.springframework.context.annotation.Bean;
@@ -91,8 +92,10 @@ public class ParentApplicationDatasourceConfig {
 
     /**
      * Creates the transaction manager for the parent application.
+     * This is marked as @Primary so @Transactional uses it by default.
      */
     @Bean
+    @Primary
     @ConditionalOnMissingBean(name = "parentTransactionManager")
     @ConditionalOnProperty(prefix = "blackout.parent.datasource", name = {"repository", "model"})
     public PlatformTransactionManager parentTransactionManager(

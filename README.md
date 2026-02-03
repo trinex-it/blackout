@@ -308,6 +308,30 @@ When working with separate databases:
 
 3. **Cleanup jobs**: Consider implementing a cleanup job that removes orphaned `AuthAccount` records (auth accounts without corresponding business entities).
 
+#### Cross-Database Transaction Rules
+
+When working with `authAccountRepo` and `AuthAccount` entities, always specify the transaction manager:
+
+```java
+// For auth database (REQUIRED)
+@Transactional("blackoutTransactionManager")
+public void authOperation() {
+    authAccountRepo.save(...);
+}
+
+// For primary database (default)
+@Transactional
+public void businessOperation() {
+    userRepository.save(...);
+}
+```
+
+**Important**: A single `@Transactional` method cannot manage transactions across both databases. You must create separate methods:
+- One method annotated with `@Transactional` for primary database operations
+- One method annotated with `@Transactional("blackoutTransactionManager")` for auth database operations
+
+Then call these methods from a non-transactional coordinator method that handles manual rollback if needed (as shown in the example above).
+
 ### Security Configuration
 
 - **Flexible Filter Chain** - Configure allowed and authenticated endpoints via `blackout.filterchain.allowed` and `blackout.filterchain.authenticated` properties
