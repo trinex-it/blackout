@@ -4,17 +4,16 @@ import it.trinex.blackout.repository.AuthAccountRepo;
 import it.trinex.blackout.exception.AccountNotActiveException;
 import it.trinex.blackout.model.AuthAccount;
 import it.trinex.blackout.security.BlackoutUserPrincipal;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-@Service
 @RequiredArgsConstructor
 public class BlackoutUserDetailService implements UserDetailsService {
 
     protected final AuthAccountRepo authAccountRepo;
-
 
     @Override
     public BlackoutUserPrincipal loadUserByUsername(String username) throws UsernameNotFoundException {

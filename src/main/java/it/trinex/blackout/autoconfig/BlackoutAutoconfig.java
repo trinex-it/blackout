@@ -8,12 +8,14 @@ import it.trinex.blackout.repository.AuthAccountRepo;
 import it.trinex.blackout.security.BlackoutPrincipalFactory;
 import it.trinex.blackout.security.JwtAuthenticationFilter;
 import it.trinex.blackout.service.AuthService;
+import it.trinex.blackout.service.BlackoutUserDetailService;
 import it.trinex.blackout.service.JwtService;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @AutoConfiguration
@@ -23,6 +25,12 @@ public class BlackoutAutoconfig {
     @ConditionalOnMissingBean(name = "authController")
     public AuthenticationController authenticationController(AuthService authService) {
         return new AuthenticationController(authService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(UserDetailsService.class)
+    public BlackoutUserDetailService blackoutUserDetailService(AuthAccountRepo authAccountRepo) {
+        return new BlackoutUserDetailService(authAccountRepo);
     }
 
     @Bean

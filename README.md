@@ -551,7 +551,6 @@ To load your custom principal from the database during authentication, implement
 
 @Service
 @RequiredArgsConstructor
-@Primary // <-- VERY IMPORTANT (Bean conflicts with default implementation if not set)
 public class MyUserDetailsService implements UserDetailsService {
 
     private final UserRepo userRepo;
