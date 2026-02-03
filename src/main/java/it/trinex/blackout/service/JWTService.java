@@ -21,6 +21,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -33,7 +34,7 @@ public class JWTService {
 
     private static final String AUTH_ID = "auth_id";
     private static final String CLAIM_USERID = "user_id";
-    private static final String CLAIM_ROLE = "role";
+    private static final String CLAIM_ROLE = "roles";
 
 
     private final JwtProperties jwtProperties;
@@ -74,7 +75,6 @@ public class JWTService {
      * @return JWT refresh token string
      */
     public String generateRefreshToken(BlackoutUserPrincipal userPrincipal) {
-        String role = extractRoleFromAuthorities(userPrincipal.getAuthorities());
         long expirationMs = jwtProperties.getRefreshTokenExp();
         String token = buildToken(userPrincipal, expirationMs, TOKEN_TYPE_REFRESH);
 
@@ -179,11 +179,12 @@ public class JWTService {
     public UserDetails extractUserPrincipal(String token) {
         Claims claims = extractAllClaims(token);
 
-        String role = claims.get(CLAIM_ROLE, String.class);
+        List<String> roles = claims.get(CLAIM_ROLE, List.class);
 
-        List<SimpleGrantedAuthority> authorities = List.of(
-                new SimpleGrantedAuthority(role),
-                new SimpleGrantedAuthority("ROLE_" + role));
+        List<SimpleGrantedAuthority> authorities = roles.stream().flatMap(s -> Stream.of(
+                new SimpleGrantedAuthority(s),
+                new SimpleGrantedAuthority("ROLE_" + s)
+        )).toList();
 
        return blackoutPrincipalFactory.fromClaims(claims, authorities);
 
@@ -192,8 +193,8 @@ public class JWTService {
     /**
      * Extracts the user's role (AuthAccountType) from a token.
      */
-    public String extractRole(String token) {
-        return extractAllClaims(token).get(CLAIM_ROLE, String.class);
+    public List<String> extractRole(String token) {
+        return extractAllClaims(token).get(CLAIM_ROLE, List.class);
     }
 
     /**
@@ -230,15 +231,20 @@ public class JWTService {
      * Authorities are expected to contain a ROLE_ prefixed authority (e.g.
      * "ROLE_ADMIN").
      */
-    private String extractRoleFromAuthorities(Collection<? extends GrantedAuthority> authorities) {
-        String authority = authorities.stream()
+    private List<String> extractRoleFromAuthorities(Collection<? extends GrantedAuthority> authorities) {
+        List<String> stringAuthorities = authorities.stream()
                 .map(GrantedAuthority::getAuthority)
                 .filter(auth -> auth.startsWith("ROLE_"))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No valid role found in authorities"));
+                .toList()
+                .stream()
+                .map(s -> s.substring(5))
+                .toList();
 
-        // Remove "ROLE_" prefix
-        return authority.substring(5);
+        if (stringAuthorities.isEmpty()) {
+            throw new IllegalArgumentException("No valid role found in authorities");
+        }
+
+        return stringAuthorities;
     }
 
     /**

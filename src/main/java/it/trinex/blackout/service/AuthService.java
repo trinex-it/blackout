@@ -86,7 +86,6 @@ public class AuthService {
         String newAccessToken = jwtService.generateAccessToken(userPrincipal);
 
         // Calculate expiration time for client
-        String role = jwtService.extractRole(newAccessToken);
         long accessTokenExpirationMs = jwtService.calculateAccessTokenExpiration().toEpochMilli()
                 - System.currentTimeMillis();
         long refreshTokenExpirationMs = jwtService.calculateRefreshTokenExpiration().toEpochMilli()
