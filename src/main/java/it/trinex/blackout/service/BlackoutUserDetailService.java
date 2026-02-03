@@ -4,15 +4,10 @@ import it.trinex.blackout.AuthAccountRepo;
 import it.trinex.blackout.exception.AccountNotActiveException;
 import it.trinex.blackout.model.AuthAccount;
 import it.trinex.blackout.model.BlackoutUserPrincipal;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor

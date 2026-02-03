@@ -13,19 +13,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class CurrentUserService<P extends BlackoutUserPrincipal> {
 
-
-//    public AuthAccount getCurrentAccount() {
-//        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-//        if (authentication == null || !(authentication.getPrincipal() instanceof BlackoutUserPrincipal userPrincipal)) {
-//            throw new UnauthorizedException("User is not authenticated");
-//        }
-//
-//        return authAccountRepo.findByUsername(userPrincipal.getUsername()).orElseThrow(
-//                () -> new UsernameNotFoundException("User " + userPrincipal.getUsername() + " not found")
-//        );
-//    }
-
-    public P getCurrentUser() {
+    public P getCurrentPrincipal() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof BlackoutUserPrincipal userPrincipal)) {
             throw new UnauthorizedException("User is not authenticated");

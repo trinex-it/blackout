@@ -73,7 +73,7 @@ Returns information about the currently authenticated user.
 
 #### POST {base-url}/signup
 
-Optional basic registration endpoint (configurable via `blackout.signup.enabled`). Recommended to implement custom registration logic in your application for production scenarios and cross-database features, implementation example are shown below.
+Optional basic registration endpoint (configurable via `blackout.signup.enabled`). Recommended to implement custom registration logic in your application for production scenarios and cross-database features, implementation example is shown below.
 
 **Request Body (`SignupRequestDTO`)**:
 ```json
@@ -201,6 +201,8 @@ public class MyPrincipalFactory extends AbstractBlackoutPrincipalFactory<MyUserP
     protected BlackoutUserPrincipal.BlackoutUserPrincipalBuilder<?, ?> getBuilder() {
         return MyUserPrincipal.builder();
     }
+    
+    
 
     @Override
     protected void applyCustomFields(Claims claims,
@@ -236,6 +238,7 @@ To load your custom principal from the database during authentication, implement
 ```java
 @Service
 @RequiredArgsConstructor
+@Primary // <-- VERY IMPORTANT (Bean conflicts with default implementation if not set)
 public class MyUserDetailsService implements UserDetailsService {
 
     private final UtenteRepo utenteRepo;
@@ -257,9 +260,9 @@ public class MyUserDetailsService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException(username));
 
         // 4. Build authorities
-        List<SimpleGrantedAuthority> authorities = List.of(
-                new SimpleGrantedAuthority("ROLE_" + user.getRole())
-        );
+        List<SimpleGrantedAuthority> authorities = utente.getRuoli().stream()
+                .map(r -> new SimpleGrantedAuthority("ROLE_" + r.toString()))
+                .toList();
 
         // 5. Return your custom principal with all fields
         return MyUserPrincipal.builder()
