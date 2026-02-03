@@ -1,9 +1,6 @@
 package it.trinex.blackout.autoconfig;
 
-import it.trinex.blackout.properties.CorsProperties;
-import it.trinex.blackout.properties.FilterChainProperties;
-import it.trinex.blackout.properties.JwtProperties;
-import it.trinex.blackout.properties.SignupProperties;
+import it.trinex.blackout.properties.*;
 import it.trinex.blackout.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
@@ -37,7 +34,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
-@EnableConfigurationProperties({CorsProperties.class, JwtProperties.class, FilterChainProperties.class, SignupProperties.class})
+@EnableConfigurationProperties({CorsProperties.class, JwtProperties.class, FilterChainProperties.class, SignupProperties.class, BlackoutProperties.class})
 @ConditionalOnBean({JwtAuthenticationFilter.class, UserDetailsService.class})
 public class SecurityConfig {
 
@@ -45,6 +42,7 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
     private final CorsProperties corsProperties;
     private final FilterChainProperties filterChainProperties;
+    private final BlackoutProperties blackoutProperties;
     //Even if no bean is defined Spring should inject its own
     private final ObjectProvider<Customizer<AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry>> authorizeHttpRequestsCustomizer;
     private final SignupProperties signupProperties;
@@ -63,31 +61,30 @@ public class SecurityConfig {
                 .httpBasic(HttpBasicConfigurer::disable)
 
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-//                .cors(AbstractHttpConfigurer::disable)
+
                 // Configure authorization rules
                 .authorizeHttpRequests(auth -> {
                     authorizeHttpRequestsCustomizer.ifAvailable(c -> c.customize(auth));
                     // Error page - must be accessible to all
                     auth.requestMatchers("/error").permitAll();
                     // Authentication endpoints - no authentication required
-                    auth.requestMatchers("/api/auth/**").permitAll();
-                    auth.requestMatchers("/api/jwt/**").permitAll();
+                    auth.requestMatchers(blackoutProperties.getBaseUrl() + "/auth/**").permitAll();
                     // Swagger/OpenAPI endpoints - no authentication required (dev only)
                     auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll();
 
                     if(signupProperties.isEnabled()){
-                        auth.requestMatchers("/api/signup").permitAll();
+                        auth.requestMatchers(blackoutProperties.getBaseUrl() + "/signup").permitAll();
                     }
 
                     // Custom allowed endpoints from properties
                     if (filterChainProperties.getAllowed() != null) {
                         filterChainProperties.getAllowed().forEach(
-                            pattern -> auth.requestMatchers(pattern).permitAll()
+                            pattern -> auth.requestMatchers(blackoutProperties.getBaseUrl() + pattern).permitAll()
                         );
                     }
 
                     // All other API endpoints require authentication
-                    auth.requestMatchers("/api/**").authenticated();
+                    auth.requestMatchers(blackoutProperties.getBaseUrl() + "/**").authenticated();
 
                     // Custom authenticated endpoints from properties
                     if (filterChainProperties.getAuthenticated() != null) {

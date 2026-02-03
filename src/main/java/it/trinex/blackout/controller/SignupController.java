@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 @RestController
-@RequestMapping("/api/signup")
+@RequestMapping("${blackout.baseurl:/api}" + "/signup")
 @ConditionalOnProperty(name = "blackout.signup.enabled", havingValue = "true", matchIfMissing = false)
 @RequiredArgsConstructor
 @Tag(name = "Signup", description = "Endpoints for default user registration")
@@ -49,7 +49,6 @@ class SignupController {
         AuthAccount authAccount = new AuthAccount();
         authAccount.setUsername(request.getEmail());
         authAccount.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        authAccount.setRole(signupProperties.getDefaultRole());
         authAccount.setFirstName("");
         authAccount.setLastName("");
         authAccount.setActive(true);
