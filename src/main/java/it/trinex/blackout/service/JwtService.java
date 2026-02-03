@@ -4,8 +4,8 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
-import it.trinex.blackout.BlackoutPrincipalFactory;
-import it.trinex.blackout.model.BlackoutUserPrincipal;
+import it.trinex.blackout.security.BlackoutPrincipalFactory;
+import it.trinex.blackout.security.BlackoutUserPrincipal;
 import it.trinex.blackout.properties.JwtProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +26,7 @@ import java.util.stream.Stream;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class JWTService {
+public class JwtService {
 
     private static final String TOKEN_TYPE_CLAIM = "token_type";
     private static final String TOKEN_TYPE_ACCESS = "ACCESS";

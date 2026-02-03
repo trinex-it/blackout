@@ -24,14 +24,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("${blackout.baseurl:/api}" + "/signup")
-@ConditionalOnProperty(name = "blackout.signup.enabled", havingValue = "true", matchIfMissing = false)
 @RequiredArgsConstructor
 @Tag(name = "Signup", description = "Endpoints for default user registration")
-class SignupController {
+public class SignupController {
 
     private final PasswordEncoder passwordEncoder;
     private final AuthService authService;
-    private final SignupProperties signupProperties;
 
     @PostMapping()
     @Operation(summary = "Register user", description = "Create a new account with email and password")

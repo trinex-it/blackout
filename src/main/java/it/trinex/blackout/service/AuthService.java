@@ -1,13 +1,13 @@
 package it.trinex.blackout.service;
 
-import it.trinex.blackout.AuthAccountRepo;
+import it.trinex.blackout.repository.AuthAccountRepo;
 import it.trinex.blackout.dto.response.AuthResponseDTO;
 import it.trinex.blackout.dto.response.AuthStatusResponseDTO;
 import it.trinex.blackout.exception.DuplicateKeyException;
 import it.trinex.blackout.exception.InvalidTokenException;
 import it.trinex.blackout.exception.UnauthorizedException;
 import it.trinex.blackout.model.AuthAccount;
-import it.trinex.blackout.model.BlackoutUserPrincipal;
+import it.trinex.blackout.security.BlackoutUserPrincipal;
 import it.trinex.blackout.properties.JwtProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +27,7 @@ import java.time.Duration;
 public class AuthService {
 
     private final AuthenticationManager authenticationManager;
-    private final JWTService jwtService;
+    private final JwtService jwtService;
     private final AuthAccountRepo authAccountRepo;
     private final JwtProperties jwtProperties;
 

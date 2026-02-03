@@ -21,10 +21,9 @@ import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("${blackout.baseurl:/api}" + "/auth")
-@RequiredArgsConstructor
-@ConditionalOnMissingBean(name = "authController")
 @Tag(name = "Authentication", description = "Endpoints for user authentication and token management")
 public class AuthenticationController {
 

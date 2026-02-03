@@ -1,9 +1,9 @@
 package it.trinex.blackout.service;
 
-import it.trinex.blackout.AuthAccountRepo;
+import it.trinex.blackout.repository.AuthAccountRepo;
 import it.trinex.blackout.exception.AccountNotActiveException;
 import it.trinex.blackout.model.AuthAccount;
-import it.trinex.blackout.model.BlackoutUserPrincipal;
+import it.trinex.blackout.security.BlackoutUserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;

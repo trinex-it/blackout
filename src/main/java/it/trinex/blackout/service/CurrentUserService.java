@@ -1,7 +1,7 @@
 package it.trinex.blackout.service;
 
 import it.trinex.blackout.exception.UnauthorizedException;
-import it.trinex.blackout.model.BlackoutUserPrincipal;
+import it.trinex.blackout.security.BlackoutUserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.security.core.Authentication;

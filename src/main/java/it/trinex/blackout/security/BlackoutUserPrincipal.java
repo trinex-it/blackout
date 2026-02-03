@@ -1,4 +1,4 @@
-package it.trinex.blackout.model;
+package it.trinex.blackout.security;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

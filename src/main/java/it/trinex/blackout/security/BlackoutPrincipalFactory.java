@@ -1,4 +1,4 @@
-package it.trinex.blackout;
+package it.trinex.blackout.security;
 
 import io.jsonwebtoken.Claims;
 import org.springframework.security.core.GrantedAuthority;

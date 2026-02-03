@@ -1,4 +1,4 @@
-package it.trinex.blackout;
+package it.trinex.blackout.repository;
 
 import it.trinex.blackout.model.AuthAccount;
 import org.springframework.data.jpa.repository.JpaRepository;

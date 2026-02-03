@@ -1,7 +1,6 @@
-package it.trinex.blackout;
+package it.trinex.blackout.security;
 
 import io.jsonwebtoken.Claims;
-import it.trinex.blackout.model.BlackoutUserPrincipal;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 

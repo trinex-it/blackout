@@ -1,8 +1,8 @@
 package it.trinex.blackout.autoconfig;
 
-import it.trinex.blackout.AbstractBlackoutPrincipalFactory;
-import it.trinex.blackout.BlackoutPrincipalFactory;
-import it.trinex.blackout.model.BlackoutUserPrincipal;
+import it.trinex.blackout.security.AbstractBlackoutPrincipalFactory;
+import it.trinex.blackout.security.BlackoutPrincipalFactory;
+import it.trinex.blackout.security.BlackoutUserPrincipal;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
