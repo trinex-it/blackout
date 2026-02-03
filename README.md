@@ -13,6 +13,7 @@ A Spring Boot starter that provides JWT-based authentication and authorization w
   - [Custom User Principals](#custom-user-principals)
   - [JWT Configuration](#jwt-configuration)
   - [OpenAPI Integration](#openapi-integration)
+  - [Overrideable Beans](#overrideable-beans)
   - [Auto-Configuration](#auto-configuration)
 - [Installation](#installation)
   - [Add the Maven Repository](#1-add-the-maven-repository)
@@ -361,6 +362,73 @@ Then call these methods from a non-transactional coordinator method that handles
 
 - **Swagger UI** - Auto-generated API documentation available at `/swagger-ui/index.html`
 - **Configurable Metadata** - Customize title, description, version, and contact info via `blackout.openapi.*` properties
+
+### Overrideable Beans
+
+Blackout provides sensible defaults for all its core components through Spring's `@ConditionalOnMissingBean` annotation. This means you can override any bean by simply declaring your own in a configuration class.
+
+#### How to Override Beans
+
+Create a configuration class (similar to `BlackoutConfig.java` in the test application) and declare the beans you want to customize:
+
+```java
+@Configuration
+public class MyCustomConfig {
+
+    // Example: Override the default PasswordEncoder
+    @Bean
+    @Primary
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(12); // Custom strength
+    }
+
+    // Example: Override the default SecurityFilterChain
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/public/**").permitAll()
+                .anyRequest().authenticated()
+            );
+        return http.build();
+    }
+}
+```
+
+#### Complete List of Overrideable Beans
+
+All beans listed below can be overridden by declaring your own `@Bean` method with the same return type or bean name:
+
+**Security & Authentication:**
+- `SecurityFilterChain` - Configures HTTP security rules, filter chains, and endpoint permissions
+- `AuthenticationProvider` - Custom authentication logic (e.g., integrate with external auth services)
+- `AuthenticationManager` - Manages authentication requests
+- `PasswordEncoder` - Password hashing algorithm (default: BCrypt)
+- `CorsConfigurationSource` - CORS policies and allowed origins/methods/headers
+
+**JWT & User Management:**
+- `BlackoutPrincipalFactory` - Factory for reconstructing user principals from JWT claims
+- `CurrentUserService<P>` - Type-safe service for accessing the current authenticated user in controllers
+
+**Auth Database (`blackout.datasource.*`):**
+- `blackoutDataSource` - DataSource for authentication database
+- `blackoutEntityManager` - JPA EntityManagerFactory for auth entities
+- `blackoutTransactionManager` - PlatformTransactionManager for auth database operations
+
+**Primary Database (`spring.datasource.*` / `blackout.parent.datasource.*`):**
+- `parentDataSource` - DataSource for your application's business database
+- `entityManagerFactory` - JPA EntityManagerFactory for business entities
+- `parentTransactionManager` - PlatformTransactionManager for primary database (marked as `@Primary`)
+
+**Controllers:**
+- `authController` - REST controller for `/api/auth/login`, `/api/auth/refresh`, `/api/auth/status`
+
+**OpenAPI/Swagger:**
+- `customOpenAPI` - OpenAPI metadata (title, description, version, license, contact info)
+- `groupedOpenAPI` - GroupedOpenApi configuration for path matching and documentation
+
+**Note:** When overriding beans that are used by other Blackout components, ensure your implementation maintains compatibility with the expected interfaces and contracts.
 
 ### Auto-Configuration
 
