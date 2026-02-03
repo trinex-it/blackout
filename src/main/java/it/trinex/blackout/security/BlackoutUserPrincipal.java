@@ -18,6 +18,8 @@ public class BlackoutUserPrincipal implements UserDetails{
     Long userId;
     String username;
     String password;
+    String firstName;
+    String lastName;
     private Collection<? extends GrantedAuthority> authorities;
 
     @Override
