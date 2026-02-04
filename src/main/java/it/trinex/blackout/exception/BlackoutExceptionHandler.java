@@ -64,7 +64,7 @@ public class BlackoutExceptionHandler {
     }
 
     @ExceptionHandler(AuthorizationDeniedException.class)
-    public ResponseEntity<ExceptionResponseDTO> handleAccessDeniedException(AccessDeniedException ex) {
+    public ResponseEntity<ExceptionResponseDTO> handleAccessDeniedException(AuthorizationDeniedException ex) {
         BlackoutException myEx = new BlackoutException(HttpStatus.FORBIDDEN, "AUTHORIZATION", "User is not authorized to access this resource");
 
         logBlackoutException(myEx);
