@@ -11,6 +11,7 @@ import java.time.Instant;
 @AllArgsConstructor
 @Entity
 @Builder
+@Table(name = "auth-account")
 public class AuthAccount {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
