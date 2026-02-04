@@ -56,8 +56,8 @@ public class BlackoutAutoconfig {
     }
 
     @Bean
-    public AuthService authService(AuthenticationManager authenticationManager, JwtService jWTService, AuthAccountRepo authAccountRepo, JwtProperties jwtProperties) {
-        return new AuthService(authenticationManager, jWTService, authAccountRepo, jwtProperties);
+    public AuthService authService(AuthenticationManager authenticationManager, JwtService jWTService, AuthAccountRepo authAccountRepo, JwtProperties jwtProperties, UserDetailsService userDetailsService) {
+        return new AuthService(authenticationManager, jWTService, authAccountRepo, jwtProperties, userDetailsService);
     }
 
 }

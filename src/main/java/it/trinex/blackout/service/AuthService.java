@@ -17,6 +17,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -30,6 +31,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthAccountRepo authAccountRepo;
     private final JwtProperties jwtProperties;
+    private final UserDetailsService userDetailsService;
 
 
     public AuthResponseDTO login(String subject, String password, Boolean rememberMe) {
@@ -80,7 +82,9 @@ public class AuthService {
         }
 
         // Extract user from refresh token (no database call needed!)
-        BlackoutUserPrincipal userPrincipal = (BlackoutUserPrincipal) jwtService.extractUserPrincipal(refreshToken);
+        String subject = jwtService.extractSubject(refreshToken);
+
+        BlackoutUserPrincipal userPrincipal = (BlackoutUserPrincipal) userDetailsService.loadUserByUsername(subject);
 
         // Generate new access token
         String newAccessToken = jwtService.generateAccessToken(userPrincipal);

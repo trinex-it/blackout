@@ -208,6 +208,10 @@ public class JwtService {
         return extractAllClaims(token).getExpiration();
     }
 
+    public String extractSubject(String token) {
+        return extractAllClaims(token).getSubject();
+    }
+
     /**
      * Extracts the JTI (JWT ID) from a token for revocation purposes.
      */
