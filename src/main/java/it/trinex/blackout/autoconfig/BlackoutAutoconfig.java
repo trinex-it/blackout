@@ -10,6 +10,7 @@ import it.trinex.blackout.security.JwtAuthenticationFilter;
 import it.trinex.blackout.service.AuthService;
 import it.trinex.blackout.service.BlackoutUserDetailService;
 import it.trinex.blackout.service.JwtService;
+import jakarta.persistence.EntityManager;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

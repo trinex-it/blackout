@@ -485,17 +485,19 @@ To add custom user data to your JWT tokens and access it in your controllers, fo
 Extend `BlackoutUserPrincipal` and add custom fields. Override `getExtraClaims()` to include these fields in JWT tokens:
 
 ```java
+
+@Getter
 @SuperBuilder
 public class MyUserPrincipal extends BlackoutUserPrincipal {
 
-    private String taxCode;
+  private String taxCode;
 
-    @Override
-    public Map<String, Object> getExtraClaims() {
-        return Map.of(
-                "tax_code", taxCode
-        );
-    }
+  @Override
+  public Map<String, Object> getExtraClaims() {
+    return Map.of(
+            "tax_code", taxCode
+    );
+  }
 }
 ```
 

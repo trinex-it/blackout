@@ -2,6 +2,7 @@ package it.trinex.blackout.service;
 
 import it.trinex.blackout.exception.UnauthorizedException;
 import it.trinex.blackout.security.BlackoutUserPrincipal;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.security.core.Authentication;
@@ -21,5 +22,10 @@ public class CurrentUserService<P extends BlackoutUserPrincipal> {
 
         return (P) userPrincipal;
     }
+
+//    public U getCurrentUserReference() {
+//        Long id =  getCurrentPrincipal().getUserId();
+//        U reference = entityManager.getReference(U.class, id);
+//    }
 
 }

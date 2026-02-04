@@ -35,6 +35,8 @@ public class JwtService {
     private static final String AUTH_ID = "auth_id";
     private static final String CLAIM_USERID = "user_id";
     private static final String CLAIM_ROLE = "roles";
+    private static final String CLAIM_FIRSTNAME = "first_name";
+    private static final String CLAIM_LASTNAME = "last_name";
 
 
     private final JwtProperties jwtProperties;
@@ -99,6 +101,8 @@ public class JwtService {
                 .claim(AUTH_ID, userPrincipal.getId())
                 .claim(CLAIM_USERID, userPrincipal.getUserId())
                 .claim(CLAIM_ROLE, extractRoleFromAuthorities(userPrincipal.getAuthorities()))
+                .claim(CLAIM_FIRSTNAME, userPrincipal.getFirstName())
+                .claim(CLAIM_LASTNAME, userPrincipal.getLastName())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256);
