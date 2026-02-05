@@ -38,7 +38,7 @@ public class AuthenticationController {
     })
     public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
         AuthResponseDTO response = authService.login(
-                request.getEmail(),
+                request.getSubject(),
                 request.getPassword(),
                 request.getRememberMe()
         );

@@ -17,8 +17,10 @@ public class BlackoutUserDetailService implements UserDetailsService {
 
     @Override
     public BlackoutUserPrincipal loadUserByUsername(String username) throws UsernameNotFoundException {
-        AuthAccount authAccount = authAccountRepo.findByUsername(username).orElseThrow(
-                () -> new UsernameNotFoundException(username));
+        AuthAccount authAccount = authAccountRepo.findByUsername(username).orElse(
+                authAccountRepo.findByEmail(username)
+                        .orElseThrow(() -> new UsernameNotFoundException(username))
+        );
 
         // Check if account is active
         if (!authAccount.isActive()) {

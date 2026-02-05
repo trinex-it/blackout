@@ -23,8 +23,10 @@ public class AuthAccount {
     private String lastName;
 
     // Credentials
-    @Column(unique = true, nullable = false)
+    @Column(unique = true)
     private String username;
+    @Column(unique = true)
+    private String email;
     @Column(nullable = false)
     private String passwordHash;
     @Column(nullable = false)

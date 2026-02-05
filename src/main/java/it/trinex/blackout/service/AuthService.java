@@ -33,7 +33,6 @@ public class AuthService {
     private final JwtProperties jwtProperties;
     private final UserDetailsService userDetailsService;
 
-
     public AuthResponseDTO login(String subject, String password, Boolean rememberMe) {
         log.info("Login attempt for user: '{}' ", subject);
 

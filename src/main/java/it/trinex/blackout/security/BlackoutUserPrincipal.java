@@ -17,6 +17,7 @@ public class BlackoutUserPrincipal implements UserDetails{
     Long id;
     Long userId;
     String username;
+    String email;
     String password;
     String firstName;
     String lastName;
