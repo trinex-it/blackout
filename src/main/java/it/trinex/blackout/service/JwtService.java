@@ -98,7 +98,7 @@ public class JwtService {
                 .subject(userPrincipal.getUsername())
                 .id(UUID.randomUUID().toString())
                 .claim(TOKEN_TYPE_CLAIM, tokenType)
-                .claim(AUTH_ID, userPrincipal.getId())
+                .claim(AUTH_ID, userPrincipal.getAuthId())
                 .claim(CLAIM_USERID, userPrincipal.getUserId())
                 .claim(CLAIM_ROLE, extractRoleFromAuthorities(userPrincipal.getAuthorities()))
                 .claim(CLAIM_FIRSTNAME, userPrincipal.getFirstName())

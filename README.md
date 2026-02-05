@@ -134,28 +134,33 @@ The custom signup flow involves two databases:
 Define a DTO that collects all the data you need for registration:
 
 ```java
+import jakarta.validation.constraints.NotBlank;
+
 @Data
 public class MySignupRequestDTO {
 
-    @NotBlank
-    @Email
-    private String email;
+  @NotBlank
+  @Email
+  private String email;
 
-    @NotBlank
-    @Size(min = 8, max = 100)
-    private String password;
+  @NotBlank
+  private String username;
 
-    @NotBlank
-    private String confirmPassword;
+  @NotBlank
+  @Size(min = 8, max = 100)
+  private String password;
 
-    @NotBlank
-    private String firstName;
+  @NotBlank
+  private String confirmPassword;
 
-    @NotBlank
-    private String lastName;
+  @NotBlank
+  private String firstName;
 
-    @NotBlank
-    private String taxCode; // Business-specific field
+  @NotBlank
+  private String lastName;
+
+  @NotBlank
+  private String taxCode; // Business-specific field
 }
 ```
 
@@ -206,7 +211,8 @@ public class UserService {
                 AuthAccount.builder()
                     .firstName(request.getFirstName())
                     .lastName(request.getLastName())
-                    .username(request.getEmail())
+                    .username(request.getUsername())
+                    .email(request.getEmail())
                     .passwordHash(passwordEncoder.encode(request.getPassword()))
                     .isActive(true)
                     .build()
@@ -216,6 +222,7 @@ public class UserService {
             User user = User.builder()
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
+                .username(request.getUsername())    
                 .email(request.getEmail())
                 .taxCode(request.getTaxCode())
                 .authAccountId(authAccount.getId()) // ← CRITICAL: Link to AuthAccount
@@ -257,9 +264,11 @@ public class MyUserDetailsService implements UserDetailsService {
     @Override
     public BlackoutUserPrincipal loadUserByUsername(String username) throws UsernameNotFoundException {
         // 1. Load AuthAccount from auth database
-        AuthAccount authAccount = authAccountRepo.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException(username));
-
+        AuthAccount authAccount = authAccountRepo.findByUsername(username).orElse(
+                authAccountRepo.findByEmail(username)
+                        .orElseThrow(() -> new UsernameNotFoundException(username))
+        );
+      
         // 2. Load business entity using authAccountId foreign key
         User user = userRepo.findByAuthAccountId(authAccount.getId())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found in primary database"));
@@ -561,8 +570,10 @@ public class MyUserDetailsService implements UserDetailsService {
     @Override
     public BlackoutUserPrincipal loadUserByUsername(String username) throws UsernameNotFoundException {
         // 1. Load AuthAccount from auth database
-        AuthAccount authAccount = authAccountRepo.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException(username));
+        AuthAccount authAccount = authAccountRepo.findByUsername(username).orElse(
+                authAccountRepo.findByEmail(username)
+                        .orElseThrow(() -> new UsernameNotFoundException(username))
+        );
 
         // 2. Check if account is active
         if (!authAccount.isActive()) {

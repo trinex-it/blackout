@@ -14,7 +14,7 @@ import java.util.Map;
 @SuperBuilder
 public class BlackoutUserPrincipal implements UserDetails{
 
-    Long id;
+    Long authId;
     Long userId;
     String username;
     String email;

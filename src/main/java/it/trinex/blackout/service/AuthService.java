@@ -111,7 +111,7 @@ public class AuthService {
         }
 
         return AuthStatusResponseDTO.builder()
-                .id(userPrincipal.getId())
+                .id(userPrincipal.getAuthId())
                 .username(userPrincipal.getUsername())
                 .role(userPrincipal.getAuthorities().stream().findFirst().map(Object::toString)
                         .orElse("UNKNOWN"))
@@ -119,6 +119,12 @@ public class AuthService {
     }
 
     public AuthAccount registerAuthAccount(AuthAccount authAccount) {
+        // Verify that either username or email are populated
+        if ((authAccount.getUsername() == null || authAccount.getUsername().trim().isEmpty()) &&
+                (authAccount.getEmail() == null || authAccount.getEmail().trim().isEmpty())) {
+            throw new IllegalArgumentException("Either username or email must be provided");
+        }
+
         try {
             return authAccountRepo.save(authAccount);
         } catch (DataIntegrityViolationException e) {

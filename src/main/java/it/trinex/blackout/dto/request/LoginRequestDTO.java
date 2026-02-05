@@ -15,7 +15,7 @@ public class LoginRequestDTO {
     @NotBlank(message = "Either email or username is required")
     private String subject;
 
-    @Schema(description = "User's password", example = "odioinegri", requiredMode = Schema.RequiredMode.REQUIRED, format = "password")
+    @Schema(description = "User's password", example = "Password123!", requiredMode = Schema.RequiredMode.REQUIRED, format = "password")
     @NotBlank(message = "Password is required")
     private String password;
 

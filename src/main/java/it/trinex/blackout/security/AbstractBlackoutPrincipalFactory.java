@@ -19,7 +19,7 @@ public abstract class AbstractBlackoutPrincipalFactory<T extends UserDetails> im
         BlackoutUserPrincipal.BlackoutUserPrincipalBuilder<?, ?> builder = (BlackoutUserPrincipal.BlackoutUserPrincipalBuilder<?, ?>) getBuilder();
 
         // Handle all common fields
-        builder.id(claims.get("uid", Long.class))
+        builder.authId(claims.get("uid", Long.class))
                 .firstName(claims.get("first_name", String.class))
                 .lastName(claims.get("last_name", String.class))
                 .authorities(authorities)
