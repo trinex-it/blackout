@@ -4,6 +4,7 @@ import lombok.Builder;
 
 @Builder
 public record AuthResponseDTO (
+    Boolean needOTP,
     String access_token,
     String refresh_token,
     Long access_token_expiration,

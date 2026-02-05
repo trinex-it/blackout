@@ -1,15 +1,20 @@
 package it.trinex.blackout.autoconfig;
 
+import dev.samstevens.totp.code.CodeVerifier;
+import dev.samstevens.totp.qr.QrGenerator;
+import dev.samstevens.totp.secret.SecretGenerator;
 import it.trinex.blackout.controller.AuthenticationController;
 import it.trinex.blackout.controller.SignupController;
 import it.trinex.blackout.exception.BlackoutExceptionHandler;
 import it.trinex.blackout.properties.JwtProperties;
+import it.trinex.blackout.properties.TOTPProperties;
 import it.trinex.blackout.repository.AuthAccountRepo;
 import it.trinex.blackout.security.BlackoutPrincipalFactory;
 import it.trinex.blackout.security.JwtAuthenticationFilter;
 import it.trinex.blackout.service.AuthService;
 import it.trinex.blackout.service.BlackoutUserDetailService;
 import it.trinex.blackout.service.JwtService;
+import it.trinex.blackout.service.TOTPService;
 import jakarta.persistence.EntityManager;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -51,13 +56,18 @@ public class BlackoutAutoconfig {
     }
 
     @Bean
+    public TOTPService totpService(TOTPProperties tOTPProperties, SecretGenerator secretGenerator, AuthAccountRepo authAccountRepo, QrGenerator qrGenerator, CodeVerifier codeVerifier) {
+        return new TOTPService(tOTPProperties, secretGenerator, authAccountRepo, qrGenerator, codeVerifier);
+    }
+
+    @Bean
     public JwtService jwtService(JwtProperties jwtProperties, BlackoutPrincipalFactory blackoutPrincipalFactory) {
         return new JwtService(jwtProperties, blackoutPrincipalFactory);
     }
 
     @Bean
-    public AuthService authService(AuthenticationManager authenticationManager, JwtService jWTService, AuthAccountRepo authAccountRepo, JwtProperties jwtProperties, UserDetailsService userDetailsService) {
-        return new AuthService(authenticationManager, jWTService, authAccountRepo, jwtProperties, userDetailsService);
+    public AuthService authService(AuthenticationManager authenticationManager, JwtService jWTService, AuthAccountRepo authAccountRepo, JwtProperties jwtProperties, UserDetailsService userDetailsService, TOTPService totpService) {
+        return new AuthService(authenticationManager, jWTService, authAccountRepo, jwtProperties, userDetailsService, totpService);
     }
 
 }

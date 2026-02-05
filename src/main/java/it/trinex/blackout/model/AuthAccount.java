@@ -32,8 +32,8 @@ public class AuthAccount {
     @Column(nullable = false)
     private boolean isActive;
 
-    // TODO: 2FA
-    //private String totpSecret;
+    @Column(unique = true, nullable = true)
+    private String totpSecret;
 
     // Audit fields
     private Instant createdAt;

@@ -40,7 +40,8 @@ public class AuthenticationController {
         AuthResponseDTO response = authService.login(
                 request.getSubject(),
                 request.getPassword(),
-                request.getRememberMe()
+                request.getRememberMe(),
+                request.getTotpCode()
         );
         return ResponseEntity.ok(response);
     }

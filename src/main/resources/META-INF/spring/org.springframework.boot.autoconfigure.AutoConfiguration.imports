@@ -5,3 +5,4 @@ it.trinex.blackout.autoconfig.SecurityConfig
 it.trinex.blackout.autoconfig.JwtConfig
 it.trinex.blackout.autoconfig.BlackoutDataSourceConfig
 it.trinex.blackout.autoconfig.OpenApiConfig
+it.trinex.blackout.autoconfig.TOTPConfig

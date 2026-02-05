@@ -1,5 +1,6 @@
 package it.trinex.blackout.service;
 
+import it.trinex.blackout.exception.InvalidTOTPCodeException;
 import it.trinex.blackout.repository.AuthAccountRepo;
 import it.trinex.blackout.dto.response.AuthResponseDTO;
 import it.trinex.blackout.dto.response.AuthStatusResponseDTO;
@@ -18,6 +19,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -32,8 +34,9 @@ public class AuthService {
     private final AuthAccountRepo authAccountRepo;
     private final JwtProperties jwtProperties;
     private final UserDetailsService userDetailsService;
+    private final TOTPService totpService;
 
-    public AuthResponseDTO login(String subject, String password, Boolean rememberMe) {
+    public AuthResponseDTO login(String subject, String password, Boolean rememberMe, String totpCode) {
         log.info("Login attempt for user: '{}' ", subject);
 
         // Authenticate user with Spring Security
@@ -45,6 +48,20 @@ public class AuthService {
                             password));
         } catch (AuthenticationException e) {
             throw new UnauthorizedException("Invalid username or password");
+        }
+
+        AuthAccount authAccount = authAccountRepo.findByUsername(subject).orElse(
+                authAccountRepo.findByEmail(subject).get()
+        );
+
+        if(authAccount.getTotpSecret() != null && !authAccount.getTotpSecret().isEmpty()) {
+            if(totpCode != null && !totpCode.isEmpty()) {
+                if(!totpService.verifyCode(totpCode, authAccount.getTotpSecret())) {
+                    throw new InvalidTOTPCodeException("Invalid TOTP code");
+                }
+            } else {
+                return new AuthResponseDTO(true, null, null, null, null);
+            }
         }
 
         // Extract authenticated user principal
