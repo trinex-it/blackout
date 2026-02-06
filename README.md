@@ -596,23 +596,7 @@ All components are automatically configured via Spring Boot's auto-configuration
 
 ## Installation
 
-### 1. Add the Maven Repository
-
-Add the Gitea Maven repository to your project's `pom.xml`:
-
-```xml
-<repositories>
-    <repository>
-        <id>gitea</id>
-        <url>https://lab.0tb.it/api/packages/trinex/maven</url>
-        <snapshots>
-            <updatePolicy>always</updatePolicy>
-        </snapshots>
-    </repository>
-</repositories>
-```
-
-### 2. Add the Dependency
+### 1. Add the Dependency
 
 Add the Blackout dependency to your `pom.xml`:
 
@@ -620,11 +604,11 @@ Add the Blackout dependency to your `pom.xml`:
 <dependency>
     <groupId>it.trinex</groupId>
     <artifactId>blackout</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.1</version>
 </dependency>
 ```
 
-### 3. Minimum Requirements
+### 2. Minimum Requirements
 
 - Java 21+
 - Spring Boot 4.0.2+
