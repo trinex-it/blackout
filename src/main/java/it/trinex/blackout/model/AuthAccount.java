@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.List;
 
 @Getter
 @Setter
@@ -35,10 +36,16 @@ public class AuthAccount {
     @Column(unique = true, nullable = true)
     private String totpSecret;
 
+    @ElementCollection
+    @CollectionTable(name = "recovery_codes", joinColumns = @JoinColumn(name = "auth_account_id"))
+    private List<String> recoveryCodes;
+
     // Audit fields
     private Instant createdAt;
     private Instant updatedAt;
     private Instant deletedAt;
+    
+    
 
     @PrePersist
     protected void onCreate() {

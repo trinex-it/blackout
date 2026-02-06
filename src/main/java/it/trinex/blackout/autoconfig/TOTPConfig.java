@@ -10,6 +10,7 @@ import dev.samstevens.totp.recovery.RecoveryCodeGenerator;
 import dev.samstevens.totp.secret.DefaultSecretGenerator;
 import dev.samstevens.totp.secret.SecretGenerator;
 import dev.samstevens.totp.time.NtpTimeProvider;
+import dev.samstevens.totp.time.SystemTimeProvider;
 import dev.samstevens.totp.time.TimeProvider;
 import it.trinex.blackout.properties.TOTPProperties;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -33,7 +34,7 @@ public class TOTPConfig {
 
     @Bean
     public TimeProvider timeProvider() throws UnknownHostException {
-        return new NtpTimeProvider("pool.ntp.org", 6000);
+        return new NtpTimeProvider("pool.ntp.org");
     }
 
     @Bean
@@ -50,4 +51,5 @@ public class TOTPConfig {
     public CodeVerifier codeVerifier(CodeGenerator codeGenerator, TimeProvider timeProvider) {
         return new DefaultCodeVerifier(codeGenerator, timeProvider);
     }
+
 }

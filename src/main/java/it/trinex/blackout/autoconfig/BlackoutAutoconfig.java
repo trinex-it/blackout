@@ -2,19 +2,19 @@ package it.trinex.blackout.autoconfig;
 
 import dev.samstevens.totp.code.CodeVerifier;
 import dev.samstevens.totp.qr.QrGenerator;
+import dev.samstevens.totp.recovery.RecoveryCodeGenerator;
 import dev.samstevens.totp.secret.SecretGenerator;
 import it.trinex.blackout.controller.AuthenticationController;
 import it.trinex.blackout.controller.SignupController;
+import it.trinex.blackout.controller.TOTPController;
 import it.trinex.blackout.exception.BlackoutExceptionHandler;
 import it.trinex.blackout.properties.JwtProperties;
 import it.trinex.blackout.properties.TOTPProperties;
 import it.trinex.blackout.repository.AuthAccountRepo;
 import it.trinex.blackout.security.BlackoutPrincipalFactory;
+import it.trinex.blackout.security.BlackoutUserPrincipal;
 import it.trinex.blackout.security.JwtAuthenticationFilter;
-import it.trinex.blackout.service.AuthService;
-import it.trinex.blackout.service.BlackoutUserDetailService;
-import it.trinex.blackout.service.JwtService;
-import it.trinex.blackout.service.TOTPService;
+import it.trinex.blackout.service.*;
 import jakarta.persistence.EntityManager;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -31,6 +31,18 @@ public class BlackoutAutoconfig {
     @ConditionalOnMissingBean(name = "authController")
     public AuthenticationController authenticationController(AuthService authService) {
         return new AuthenticationController(authService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "totpController")
+    public TOTPController totpController(TOTPService totpService) {
+        return new TOTPController(totpService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(CurrentUserService.class)
+    public CurrentUserService<BlackoutUserPrincipal> currentUserService(AuthAccountRepo authAccountRepo) {
+        return new CurrentUserService<>(authAccountRepo);
     }
 
     @Bean
@@ -56,8 +68,8 @@ public class BlackoutAutoconfig {
     }
 
     @Bean
-    public TOTPService totpService(TOTPProperties tOTPProperties, SecretGenerator secretGenerator, AuthAccountRepo authAccountRepo, QrGenerator qrGenerator, CodeVerifier codeVerifier) {
-        return new TOTPService(tOTPProperties, secretGenerator, authAccountRepo, qrGenerator, codeVerifier);
+    public TOTPService totpService(TOTPProperties tOTPProperties, SecretGenerator secretGenerator, AuthAccountRepo authAccountRepo, QrGenerator qrGenerator, CodeVerifier codeVerifier, CurrentUserService currentUserService, RecoveryCodeGenerator recoveryCodeGenerator) {
+        return new TOTPService(tOTPProperties, secretGenerator, authAccountRepo, qrGenerator, codeVerifier, currentUserService, recoveryCodeGenerator);
     }
 
     @Bean

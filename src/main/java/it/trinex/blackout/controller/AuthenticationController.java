@@ -34,6 +34,8 @@ public class AuthenticationController {
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Login successful",
             content = @Content(schema = @Schema(implementation = AuthResponseDTO.class))),
+        @ApiResponse(responseCode = "202", description = "Login successful, TOTP code required",
+            content = @Content(schema = @Schema(implementation = AuthResponseDTO.class))),
         @ApiResponse(responseCode = "401", description = "Invalid credentials")
     })
     public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
@@ -43,6 +45,11 @@ public class AuthenticationController {
                 request.getRememberMe(),
                 request.getTotpCode()
         );
+
+        if (response.needOTP()) {
+            return ResponseEntity.accepted().body(response);
+        }
+
         return ResponseEntity.ok(response);
     }
 

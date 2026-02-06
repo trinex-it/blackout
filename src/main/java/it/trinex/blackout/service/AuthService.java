@@ -83,6 +83,7 @@ public class AuthService {
         long refreshTokenMaxAge = rememberMe ? Duration.ofMillis(refreshTokenExpirationMs).toSeconds() : jwtProperties.getRefreshTokenExpNoRemember();
 
         return AuthResponseDTO.builder()
+            .needOTP(false)
             .access_token(accessToken)
             .refresh_token(refreshToken)
             .access_token_expiration(accessTokenExpirationMs)

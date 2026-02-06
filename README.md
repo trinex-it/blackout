@@ -7,6 +7,7 @@ A Spring Boot starter that provides JWT-based authentication and authorization w
 - [Features](#features)
   - [Authentication Endpoints](#authentication-endpoints)
   - [User Registration](#user-registration)
+  - [Two-Factor Authentication](#two-factor-authentication)
   - [Custom User Registration](#custom-user-registration)
   - [Security Configuration](#security-configuration)
   - [Multi-Database Architecture](#multi-database-architecture)
@@ -109,6 +110,152 @@ Optional basic registration endpoint (configurable via `blackout.signup.enabled`
 **Response**: HTTP 201 Created (empty body)
 
 **Note**: After registration, use the login endpoint to obtain authentication tokens.
+
+### Two-Factor Authentication
+
+Blackout provides TOTP-based (Time-based One-Time Password) two-factor authentication using authenticator apps like Google Authenticator, Authy, or similar.
+
+#### GET {base-url}/2fa
+
+Generates a TOTP secret key and QR code for setting up two-factor authentication.
+
+**Response (`TOTPRegistrationResponse`)**:
+```json
+{
+  "secret": "JBSWY3DPEHPK3PXP",
+  "qrURI": "otpauth://totp/MyApp:user@example.com?secret=JBSWY3DPEHPK3PXP&issuer=MyApp"
+}
+```
+
+**Flow**:
+1. User calls this endpoint to get the secret and QR code
+2. User scans the QR code with their authenticator app
+3. User calls POST `/api/2fa` with the secret and a generated TOTP code to complete setup
+
+**Response Codes**:
+- `200` - TOTP secret generated successfully
+- `401` - User not authenticated
+- `409` - 2FA is already enabled for this user
+
+#### POST {base-url}/2fa
+
+Enables two-factor authentication for the current user by validating a TOTP code.
+
+**Request Body (`Enable2FARequest`)**:
+```json
+{
+  "secret": "JBSWY3DPEHPK3PXP",
+  "totp": "123456"
+}
+```
+
+**Response (`TFAEnabledResponse`)**:
+```json
+{
+  "recoveryCodes": [
+    "ABCD-1234-EFGH-5678",
+    "IJKL-9012-MNOP-3456",
+    "QRST-7890-UVWX-1234",
+    "YZAB-4567-CDEF-8901",
+    "GHIJ-2345-KLMN-6789",
+    "OPQR-0123-STUV-3456",
+    "WXYZ-7890-ABCD-1234",
+    "EFGH-5678-IJKL-9012"
+  ]
+}
+```
+
+**Important**: Save the recovery codes securely! They can be used to access your account if you lose access to your authenticator app. Each code can only be used once.
+
+**Response Codes**:
+- `200` - 2FA enabled successfully
+- `400` - Invalid TOTP code or secret
+- `401` - User not authenticated
+
+#### POST {base-url}/2fa/disable
+
+Disables two-factor authentication for the current user.
+
+**Request Body (`Disable2FA`)**:
+```json
+{
+  "code": "123456"
+}
+```
+
+**Response**: HTTP 200 OK (empty body)
+
+**Response Codes**:
+- `200` - 2FA disabled successfully
+- `400` - Invalid TOTP code
+- `401` - User not authenticated
+
+**Note**: The endpoint requires a valid TOTP code to ensure the user has access to their authenticator app before disabling 2FA. Once disabled, the user will only need email and password to log in.
+
+#### POST {base-url}/2fa/disable-recovery
+
+Disables two-factor authentication using a recovery code. Use this endpoint when you've lost access to your authenticator app.
+
+**Request Body (`Disable2FAWithRecoveryRequest`)**:
+```json
+{
+  "subject": "user@example.com",
+  "password": "SecurePassword123!",
+  "recoveryCode": "ABCD-1234-EFGH-5678"
+}
+```
+
+**Response**: HTTP 200 OK (empty body)
+
+**Response Codes**:
+- `200` - 2FA disabled successfully
+- `400` - Invalid credentials or recovery code
+- `401` - Authentication failed
+
+**Important**:
+- The recovery code is invalidated after use and cannot be reused
+- This endpoint validates both your credentials and the recovery code
+- Keep remaining recovery codes safe after using this endpoint
+- Consider re-enabling 2FA after regaining access to your authenticator app
+
+**Integration with Login**:
+
+When 2FA is enabled, the login endpoint behavior changes:
+
+1. **First login attempt** (without TOTP code):
+   ```json
+   POST {base-url}/auth/login
+   {
+     "email": "user@example.com",
+     "password": "SecurePassword123!"
+   }
+   ```
+   **Response**: HTTP 202 Accepted
+   ```json
+   {
+     "needOTP": true
+   }
+   ```
+
+2. **Second login attempt** (with TOTP code):
+   ```json
+   POST {base-url}/auth/login
+   {
+     "email": "user@example.com",
+     "password": "SecurePassword123!",
+     "totpCode": "123456"
+   }
+   ```
+   **Response**: HTTP 200 OK
+   ```json
+   {
+     "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+     "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+     "access_token_expiration": 3600000,
+     "refresh_token_expiration": 2592000000,
+     "needOTP": false
+   }
+   ```
 
 ### Custom User Registration
 
