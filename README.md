@@ -102,6 +102,7 @@ Optional basic registration endpoint (configurable via `blackout.signup.enabled`
 ```json
 {
   "email": "user@example.com",
+  "username": "myUsername03",
   "password": "SecurePassword123!",
   "confirmPassword": "SecurePassword123!"
 }

@@ -14,6 +14,10 @@ public class SignupRequestDTO {
     @Email(message = "Email must be valid")
     private String email;
 
+    @Schema(description = "Username", example = "myUsername03", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotBlank(message = "Username is required")
+    private String username;
+
     @Schema(description = "User's password", example = "SecurePassword123!", requiredMode = Schema.RequiredMode.REQUIRED, format = "password")
     @NotBlank(message = "Password is required")
     private String password;
