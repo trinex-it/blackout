@@ -16,9 +16,8 @@ A Spring Boot starter that provides JWT-based authentication and authorization w
   - [Overrideable Beans](#overrideable-beans)
   - [Auto-Configuration](#auto-configuration)
 - [Installation](#installation)
-  - [Add the Maven Repository](#1-add-the-maven-repository)
-  - [Add the Dependency](#2-add-the-dependency)
-  - [Minimum Requirements](#3-minimum-requirements)
+  - [Add the Dependency](#1-add-the-dependency)
+  - [Minimum Requirements](#2-minimum-requirements)
 - [Configuration](#configuration)
   - [Defining and Using a Custom User Principal](#defining-and-using-a-custom-user-principal)
   - [Custom User Registration](#custom-user-registration)
@@ -374,7 +373,7 @@ Add the Blackout dependency to your `pom.xml`:
 <dependency>
     <groupId>it.trinex</groupId>
     <artifactId>blackout</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
 </dependency>
 ```
 
