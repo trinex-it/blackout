@@ -150,6 +150,7 @@
     </build>
 
     <distributionManagement>
+        <!-- Gitea Package Registry (default) -->
         <repository>
             <id>gitea</id>
             <name>Gitea Package Registry</name>
@@ -160,6 +161,31 @@
             <name>Gitea Package Registry</name>
             <url>https://lab.0tb.it/api/packages/trinex/maven</url>
         </snapshotRepository>
+        <!-- GitHub Package Registry (configured via profile for GitHub Actions) -->
+        <!--
+        To deploy to GitHub, create a .github/workflows/deploy.yml file
+        or activate the github profile with: mvn deploy -P github
+        -->
     </distributionManagement>
+
+    <!-- Profiles for different deployment targets -->
+    <profiles>
+        <!-- GitHub Packages profile -->
+        <profile>
+            <id>github</id>
+            <distributionManagement>
+                <repository>
+                    <id>github</id>
+                    <name>GitHub Packages</name>
+                    <url>https://maven.pkg.github.com/andrewgattax/blackout</url>
+                </repository>
+                <snapshotRepository>
+                    <id>github</id>
+                    <name>GitHub Packages</name>
+                    <url>https://maven.pkg.github.com/andrewgattax/blackout</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
+    </profiles>
 
 </project>
