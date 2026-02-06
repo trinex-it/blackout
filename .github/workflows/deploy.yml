@@ -1,6 +1,7 @@
 name: Deploy Maven Package to GitHub
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
