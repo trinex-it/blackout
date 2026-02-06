@@ -16,8 +16,9 @@ A Spring Boot starter that provides JWT-based authentication and authorization w
   - [Overrideable Beans](#overrideable-beans)
   - [Auto-Configuration](#auto-configuration)
 - [Installation](#installation)
-  - [Add the Dependency](#1-add-the-dependency)
-  - [Minimum Requirements](#2-minimum-requirements)
+  - [Configure Maven Repository](#1-configure-maven-repository)
+  - [Add the Dependency](#2-add-the-dependency)
+  - [Minimum Requirements](#3-minimum-requirements)
 - [Configuration](#configuration)
   - [Defining and Using a Custom User Principal](#defining-and-using-a-custom-user-principal)
   - [Custom User Registration](#custom-user-registration)
@@ -365,7 +366,52 @@ All components are automatically configured via Spring Boot's auto-configuration
 
 ## Installation
 
-### 1. Add the Dependency
+### 1. Configure Maven Repository
+
+Blackout is distributed via GitHub Packages. Before adding the dependency, you need to configure the GitHub Maven repository and authenticate with a personal access token.
+
+#### Step 1: Add GitHub Repository to your `pom.xml`
+
+Add the GitHub Maven repository to your project's `pom.xml`:
+
+```xml
+<repositories>
+    <repository>
+        <id>github</id>
+        <url>https://maven.pkg.github.com/trinex-it/blackout</url>
+    </repository>
+</repositories>
+```
+
+**Why**: Maven needs to know where to download the Blackout library from. GitHub Packages hosts the official releases.
+
+#### Step 2: Configure `~/.m2/settings.xml`
+
+Add your GitHub credentials to Maven's settings file located at `~/.m2/settings.xml`:
+
+```xml
+<settings>
+    <servers>
+        <server>
+            <id>github</id>
+            <username>YOUR_GITHUB_USERNAME</username>
+            <password>YOUR_GITHUB_PERSONAL_ACCESS_TOKEN</password>
+        </server>
+    </servers>
+</settings>
+```
+
+**Important**: The `<id>` must match the repository ID defined in your `pom.xml` (in this case: `github`).
+
+**Why**: Maven uses the `settings.xml` file to authenticate with private repositories. Your credentials are encrypted and stored locally.
+
+**Security Note**:
+- Never commit your `settings.xml` file to version control
+- Use environment variables or CI/CD secrets for automated builds
+- Regularly rotate your personal access tokens
+- Consider using a dedicated service account for CI/CD pipelines
+
+### 2. Add the Dependency
 
 Add the Blackout dependency to your `pom.xml`:
 
@@ -377,7 +423,7 @@ Add the Blackout dependency to your `pom.xml`:
 </dependency>
 ```
 
-### 2. Minimum Requirements
+### 3. Minimum Requirements
 
 - Java 21+
 - Spring Boot 4.0.2+
