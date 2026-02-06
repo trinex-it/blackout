@@ -13,7 +13,7 @@
 
     <groupId>it.trinex</groupId>
     <artifactId>blackout</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <name>Blackout Auth System</name>
     <description>Spring Security configuration starter</description>
 

@@ -1,6 +1,7 @@
 package it.trinex.blackout.service;
 
 import it.trinex.blackout.exception.InvalidTOTPCodeException;
+import it.trinex.blackout.exception.UserNotFoundException;
 import it.trinex.blackout.repository.AuthAccountRepo;
 import it.trinex.blackout.dto.response.AuthResponseDTO;
 import it.trinex.blackout.dto.response.AuthStatusResponseDTO;
@@ -51,7 +52,7 @@ public class AuthService {
         }
 
         AuthAccount authAccount = authAccountRepo.findByUsername(subject).orElse(
-                authAccountRepo.findByEmail(subject).get()
+                authAccountRepo.findByEmail(subject).orElseThrow(() -> new UserNotFoundException("User not found"))
         );
 
         if(authAccount.getTotpSecret() != null && !authAccount.getTotpSecret().isEmpty()) {
