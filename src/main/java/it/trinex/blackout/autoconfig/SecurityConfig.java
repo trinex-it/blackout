@@ -71,6 +71,8 @@ public class SecurityConfig {
                     auth.requestMatchers(blackoutProperties.getBaseUrl() + "/auth/**").permitAll();
                     // Swagger/OpenAPI endpoints - no authentication required (dev only)
                     auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll();
+                    //2FA Recovery
+                    auth.requestMatchers(blackoutProperties.getBaseUrl() + "/2fa/disable-recovery").permitAll();
 
                     if(signupProperties.isEnabled()){
                         auth.requestMatchers(blackoutProperties.getBaseUrl() + "/signup").permitAll();
@@ -121,7 +123,7 @@ public class SecurityConfig {
 
     /**
      * BCrypt password encoder for secure password hashing.
-     * Uses default strength (10 rounds).
+     * Uses default strength (12 rounds).
      */
     @Bean
     @ConditionalOnMissingBean(PasswordEncoder.class)

@@ -52,7 +52,7 @@ public class AuthService {
         }
 
         AuthAccount authAccount = authAccountRepo.findByUsername(subject).orElse(
-                authAccountRepo.findByEmail(subject).orElseThrow(() -> new UserNotFoundException("Invalid username or password"))
+                authAccountRepo.findByEmail(subject).get()
         );
 
         if(authAccount.getTotpSecret() != null && !authAccount.getTotpSecret().isEmpty()) {

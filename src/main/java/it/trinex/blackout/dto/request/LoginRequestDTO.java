@@ -15,7 +15,7 @@ public class LoginRequestDTO {
     @NotBlank(message = "Either email or username is required")
     private String subject;
 
-    @Schema(description = "2FA code", example = "123456")
+    @Schema(description = "2FA code", example = "")
     private String totpCode;
 
     @Schema(description = "User's password", example = "Password123!", requiredMode = Schema.RequiredMode.REQUIRED, format = "password")
