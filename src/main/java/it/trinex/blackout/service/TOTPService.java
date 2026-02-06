@@ -12,10 +12,7 @@ import dev.samstevens.totp.secret.SecretGenerator;
 import it.trinex.blackout.dto.request.Disable2FAWithRecoveryRequest;
 import it.trinex.blackout.dto.response.TFAEnabledResponse;
 import it.trinex.blackout.dto.response.TOTPRegistrationResponse;
-import it.trinex.blackout.exception.InvalidRecoveryCodeException;
-import it.trinex.blackout.exception.InvalidTOTPCodeException;
-import it.trinex.blackout.exception.TFAAlreadyEnabledException;
-import it.trinex.blackout.exception.TFANotEnabledException;
+import it.trinex.blackout.exception.*;
 import it.trinex.blackout.model.AuthAccount;
 import it.trinex.blackout.properties.TOTPProperties;
 import it.trinex.blackout.repository.AuthAccountRepo;
@@ -23,6 +20,7 @@ import it.trinex.blackout.security.BlackoutUserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +37,7 @@ public class TOTPService {
     private final CodeVerifier codeVerifier;
     private final CurrentUserService currentUserService;
     private final RecoveryCodeGenerator recoveryCodeGenerator;
+    private final PasswordEncoder passwordEncoder;
 
     public TFAEnabledResponse enable2FA(String secret, String totp) throws QrGenerationException {
         if(codeVerifier.isValidCode(secret, totp)) {
@@ -78,6 +77,9 @@ public class TOTPService {
                 authAccountRepo.findByEmail(request.getSubject())
                         .orElseThrow(() -> new UsernameNotFoundException("User with email: " + request.getSubject() + " not found"))
         );
+        if(!authAccount.getPasswordHash().equals(passwordEncoder.encode(request.getPassword()))) {
+            throw new UnauthorizedException("Invalid username or password");
+        }
         String secret = authAccount.getTotpSecret();
         if(secret == null || secret.isBlank()) {
             throw new TFANotEnabledException("2FA code is not enabled");
