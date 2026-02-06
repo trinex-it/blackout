@@ -177,12 +177,12 @@
                 <repository>
                     <id>github</id>
                     <name>GitHub Packages</name>
-                    <url>https://maven.pkg.github.com/andrewgattax/blackout</url>
+                    <url>https://maven.pkg.github.com/trinex-it/blackout</url>
                 </repository>
                 <snapshotRepository>
                     <id>github</id>
                     <name>GitHub Packages</name>
-                    <url>https://maven.pkg.github.com/andrewgattax/blackout</url>
+                    <url>https://maven.pkg.github.com/trinex-it/blackout</url>
                 </snapshotRepository>
             </distributionManagement>
         </profile>
