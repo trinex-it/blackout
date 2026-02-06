@@ -7,7 +7,6 @@ A Spring Boot starter that provides JWT-based authentication and authorization w
 - [Features](#features)
   - [Authentication Endpoints](#authentication-endpoints)
   - [User Registration](#user-registration)
-  - [Custom User Registration](#custom-user-registration)
   - [Two-Factor Authentication](#two-factor-authentication)
   - [Security Configuration](#security-configuration)
   - [Multi-Database Architecture](#multi-database-architecture)
@@ -22,6 +21,7 @@ A Spring Boot starter that provides JWT-based authentication and authorization w
   - [Minimum Requirements](#3-minimum-requirements)
 - [Configuration](#configuration)
   - [Defining and Using a Custom User Principal](#defining-and-using-a-custom-user-principal)
+  - [Custom User Registration](#custom-user-registration)
   - [Minimal Configuration](#minimal-configuration)
   - [Complete Configuration Example](#complete-configuration-example)
 
@@ -35,12 +35,12 @@ Blackout provides ready-to-use REST endpoints for authentication:
 
 #### POST {base-url}/auth/login
 
-Authenticates users with email/password and returns JWT tokens.
+Authenticates users with email/username and password, and returns JWT tokens.
 
 **Request Body (`LoginRequestDTO`)**:
 ```json
 {
-  "email": "user@example.com",
+  "subject": "user@example.com",
   "password": "SecurePassword123!",
   "rememberMe": true
 }
@@ -96,7 +96,7 @@ Returns information about the currently authenticated user.
 
 #### POST {base-url}/signup
 
-Optional basic registration endpoint (configurable via `blackout.signup.enabled`). Recommended to implement custom registration logic in your application for production scenarios and cross-database features, implementation example is shown below.
+Optional basic registration endpoint (configurable via `blackout.signup.enabled`). Recommended to implement custom registration logic in your application for production scenarios and cross-database features, implementation example is shown at [Custom User Registration](#custom-user-registration)
 
 **Request Body (`SignupRequestDTO`)**:
 ```json
@@ -110,238 +110,6 @@ Optional basic registration endpoint (configurable via `blackout.signup.enabled`
 **Response**: HTTP 201 Created (empty body)
 
 **Note**: After registration, use the login endpoint to obtain authentication tokens.
-
-### Custom User Registration
-
-While Blackout provides a basic signup endpoint, production applications typically require custom registration logic that handles business-specific data and cross-database operations. This section explains how to implement a complete custom signup flow.
-
-#### Why Custom Signup?
-
-Blackout's default signup endpoint only creates an `AuthAccount` in the auth database. For real-world applications, you typically need to:
-
-1. **Collect additional user data** (tax code, address, preferences, etc.)
-2. **Create business entities** in your primary database
-3. **Link authentication and business data** via foreign key relationships
-4. **Handle cross-database transactions** manually (different databases = different transaction managers)
-
-#### Architecture
-
-The custom signup flow involves two databases:
-- **Auth Database**: Stores `AuthAccount` (email, password hash)
-- **Primary Database**: Stores your business entity (e.g., `User`, `Customer`) with an `authAccountId` foreign key
-
-#### Step 1: Create Custom Request DTO
-
-Define a DTO that collects all the data you need for registration:
-
-```java
-import jakarta.validation.constraints.NotBlank;
-
-@Data
-public class MySignupRequestDTO {
-
-  @NotBlank
-  @Email
-  private String email;
-
-  @NotBlank
-  private String username;
-
-  @NotBlank
-  @Size(min = 8, max = 100)
-  private String password;
-
-  @NotBlank
-  private String confirmPassword;
-
-  @NotBlank
-  private String firstName;
-
-  @NotBlank
-  private String lastName;
-
-  @NotBlank
-  private String taxCode; // Business-specific field
-}
-```
-
-**Why**: Collects both authentication credentials (email/password) and business data (name, tax code) in a single request.
-
-#### Step 2: Create the Signup Controller
-
-Create a REST endpoint that handles the signup request:
-
-```java
-@RestController
-@RequestMapping("/api/user")
-@RequiredArgsConstructor
-public class UserController {
-
-    private final UserService userService;
-
-    @PostMapping("/signup")
-    public ResponseEntity<Void> signup(@RequestBody @Valid MySignupRequestDTO dto) {
-        userService.signup(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
-    }
-}
-```
-
-**Why**: Provides a clean REST API endpoint for user registration.
-
-#### Step 3: Implement the Signup Service with Manual Transaction Management
-
-The service must handle two separate database operations as a single unit of work:
-
-```java
-@Service
-@RequiredArgsConstructor
-public class UserService {
-    private final AuthService authService;
-    private final AuthAccountRepo authAccountRepo;
-    private final PasswordEncoder passwordEncoder;
-    private final UserRepo userRepo; // Your business repository
-
-    @Transactional
-    public void signup(MySignupRequestDTO request) {
-        AuthAccount authAccount = null;
-
-        try {
-            // 1. Create AuthAccount in auth database
-            authAccount = authService.registerAuthAccount(
-                AuthAccount.builder()
-                    .firstName(request.getFirstName())
-                    .lastName(request.getLastName())
-                    .username(request.getUsername())
-                    .email(request.getEmail())
-                    .passwordHash(passwordEncoder.encode(request.getPassword()))
-                    .isActive(true)
-                    .build()
-            );
-
-            // 2. Create business entity in primary database
-            User user = User.builder()
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .username(request.getUsername())    
-                .email(request.getEmail())
-                .taxCode(request.getTaxCode())
-                .authAccountId(authAccount.getId()) // ← CRITICAL: Link to AuthAccount
-                .build();
-
-            userRepo.save(user);
-
-        } catch (Exception e) {
-            // 3. Manual rollback: delete AuthAccount if User creation fails
-            if (authAccount != null && authAccount.getId() != null) {
-                authAccountRepo.deleteById(authAccount.getId());
-            }
-            throw e; // Re-throw to let caller handle the error
-        }
-    }
-}
-```
-
-**Key Points**:
-
-1. **`authService.registerAuthAccount()`**: Blackout's helper method to create `AuthAccount` with validation
-2. **`authAccountId` foreign key**: Links your business entity to the auth account - this is how you'll load user data during login
-3. **Manual rollback**: Since we're dealing with two databases with separate transaction managers, we must manually clean up the `AuthAccount` if the business entity creation fails
-4. **`@Transactional`**: Only applies to the primary database transaction. The auth database operation happens in its own transaction via `AuthService`.
-
-#### Step 4: Update UserDetailsService to Use the Foreign Key
-
-When implementing your custom `UserDetailsService` (see "Defining and Using a Custom User Principal" section), use the `authAccountId` to load the business entity:
-
-```java
-@Service
-@RequiredArgsConstructor
-@Primary // IMPORTANT: Override default implementation
-public class MyUserDetailsService implements UserDetailsService {
-
-    private final AuthAccountRepo authAccountRepo;
-    private final UserRepo userRepo;
-
-    @Override
-    public BlackoutUserPrincipal loadUserByUsername(String username) throws UsernameNotFoundException {
-        // 1. Load AuthAccount from auth database
-        AuthAccount authAccount = authAccountRepo.findByUsername(username).orElse(
-                authAccountRepo.findByEmail(username)
-                        .orElseThrow(() -> new UsernameNotFoundException(username))
-        );
-      
-        // 2. Load business entity using authAccountId foreign key
-        User user = userRepo.findByAuthAccountId(authAccount.getId())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found in primary database"));
-
-        // 3. Build custom principal with data from both databases
-        return MyUserPrincipal.builder()
-                .id(authAccount.getId())
-                .userId(user.getId())
-                .username(authAccount.getUsername())
-                .password(authAccount.getPasswordHash())
-                .authorities(user.getRolesAsAuthorities())
-                .taxCode(user.getTaxCode()) // Custom field from business entity
-                .build();
-    }
-}
-```
-
-**Why**: Loads complete user data from both databases during login, stores it in JWT, eliminates cross-database queries on subsequent requests.
-
-#### Step 5: Configure Public Access for Signup Endpoint
-
-Add your custom signup endpoint to the allowed endpoints list:
-
-```yaml
-blackout:
-  filterchain:
-    allowed:
-      - "/user/**" # Allow access to custom signup endpoint
-```
-
-**Or** for more granular control:
-
-```yaml
-blackout:
-  filterchain:
-    allowed:
-      - "/user/signup" # Allow only signup endpoint
-```
-
-#### Cross-Database Transaction Considerations
-
-When working with separate databases:
-
-1. **No distributed transactions**: Spring's `@Transactional` only works for a single database. Two databases = two separate transactions.
-
-2. **Manual rollback pattern**: If the second operation fails, manually undo the first operation (as shown in the try-catch block above).
-
-3. **Cleanup jobs**: Consider implementing a cleanup job that removes orphaned `AuthAccount` records (auth accounts without corresponding business entities).
-
-#### Cross-Database Transaction Rules
-
-When working with `authAccountRepo` and `AuthAccount` entities, always specify the transaction manager:
-
-```java
-// For auth database (REQUIRED)
-@Transactional("blackoutTransactionManager")
-public void authOperation() {
-    authAccountRepo.save(...);
-}
-
-// For primary database (default)
-@Transactional
-public void businessOperation() {
-    userRepository.save(...);
-}
-```
-
-**Important**: A single `@Transactional` method cannot manage transactions across both databases. You must create separate methods:
-- One method annotated with `@Transactional` for primary database operations
-- One method annotated with `@Transactional("blackoutTransactionManager")` for auth database operations
-
-Then call these methods from a non-transactional coordinator method that handles manual rollback if needed (as shown in the example above).
 
 ### Two-Factor Authentication
 
@@ -766,6 +534,239 @@ public class MyController {
 ```
 
 **Why**: Provides type-safe, direct access to your custom authenticated user throughout your application.
+
+### Custom User Registration
+
+While Blackout provides a basic signup endpoint, production applications typically require custom registration logic that handles business-specific data and cross-database operations. This section explains how to implement a complete custom signup flow.
+
+#### Why Custom Signup?
+
+Blackout's default signup endpoint only creates an `AuthAccount` in the auth database. For real-world applications, you typically need to:
+
+1. **Collect additional user data** (tax code, address, preferences, etc.)
+2. **Create business entities** in your primary database
+3. **Link authentication and business data** via foreign key relationships
+4. **Handle cross-database transactions** manually (different databases = different transaction managers)
+
+#### Architecture
+
+The custom signup flow involves two databases:
+- **Auth Database**: Stores `AuthAccount` (email, password hash)
+- **Primary Database**: Stores your business entity (e.g., `User`, `Customer`) with an `authAccountId` foreign key
+
+#### Step 1: Create Custom Request DTO
+
+Define a DTO that collects all the data you need for registration:
+
+```java
+import jakarta.validation.constraints.NotBlank;
+
+@Data
+public class MySignupRequestDTO {
+
+  @NotBlank
+  @Email
+  private String email;
+
+  @NotBlank
+  private String username;
+
+  @NotBlank
+  @Size(min = 8, max = 100)
+  private String password;
+
+  @NotBlank
+  private String confirmPassword;
+
+  @NotBlank
+  private String firstName;
+
+  @NotBlank
+  private String lastName;
+
+  @NotBlank
+  private String taxCode; // Business-specific field
+}
+```
+
+**Why**: Collects both authentication credentials (email/password) and business data (name, tax code) in a single request.
+
+#### Step 2: Create the Signup Controller
+
+Create a REST endpoint that handles the signup request:
+
+```java
+@RestController
+@RequestMapping("/api/user")
+@RequiredArgsConstructor
+public class UserController {
+
+    private final UserService userService;
+
+    @PostMapping("/signup")
+    public ResponseEntity<Void> signup(@RequestBody @Valid MySignupRequestDTO dto) {
+        userService.signup(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+}
+```
+
+**Why**: Provides a clean REST API endpoint for user registration.
+
+#### Step 3: Implement the Signup Service with Manual Transaction Management
+
+The service must handle two separate database operations as a single unit of work:
+
+```java
+@Service
+@RequiredArgsConstructor
+public class UserService {
+    private final AuthService authService;
+    private final AuthAccountRepo authAccountRepo;
+    private final PasswordEncoder passwordEncoder;
+    private final UserRepo userRepo; // Your business repository
+
+    @Transactional
+    public void signup(MySignupRequestDTO request) {
+        AuthAccount authAccount = null;
+
+        try {
+            // 1. Create AuthAccount in auth database
+            authAccount = authService.registerAuthAccount(
+                AuthAccount.builder()
+                    .firstName(request.getFirstName())
+                    .lastName(request.getLastName())
+                    .username(request.getUsername())
+                    .email(request.getEmail())
+                    .passwordHash(passwordEncoder.encode(request.getPassword()))
+                    .isActive(true)
+                    .build()
+            );
+
+            // 2. Create business entity in primary database
+            User user = User.builder()
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .username(request.getUsername())    
+                .email(request.getEmail())
+                .taxCode(request.getTaxCode())
+                .authAccountId(authAccount.getId()) // ← CRITICAL: Link to AuthAccount
+                .build();
+
+            userRepo.save(user);
+
+        } catch (Exception e) {
+            // 3. Manual rollback: delete AuthAccount if User creation fails
+            if (authAccount != null && authAccount.getId() != null) {
+                authAccountRepo.deleteById(authAccount.getId());
+            }
+            throw e; // Re-throw to let caller handle the error
+        }
+    }
+}
+```
+
+**Key Points**:
+
+1. **`authService.registerAuthAccount()`**: Blackout's helper method to create `AuthAccount` with validation
+2. **`authAccountId` foreign key**: Links your business entity to the auth account - this is how you'll load user data during login
+3. **Manual rollback**: Since we're dealing with two databases with separate transaction managers, we must manually clean up the `AuthAccount` if the business entity creation fails
+4. **`@Transactional`**: Only applies to the primary database transaction. The auth database operation happens in its own transaction via `AuthService`.
+
+#### Step 4: Update UserDetailsService to Use the Foreign Key
+
+When implementing your custom `UserDetailsService` (see "Defining and Using a Custom User Principal" section), use the `authAccountId` to load the business entity:
+
+```java
+@Service
+@RequiredArgsConstructor
+@Primary // IMPORTANT: Override default implementation
+public class MyUserDetailsService implements UserDetailsService {
+
+    private final AuthAccountRepo authAccountRepo;
+    private final UserRepo userRepo;
+
+    @Override
+    public BlackoutUserPrincipal loadUserByUsername(String username) throws UsernameNotFoundException {
+        // 1. Load AuthAccount from auth database
+        AuthAccount authAccount = authAccountRepo.findByUsername(username).orElse(
+                authAccountRepo.findByEmail(username)
+                        .orElseThrow(() -> new UsernameNotFoundException(username))
+        );
+      
+        // 2. Load business entity using authAccountId foreign key
+        User user = userRepo.findByAuthAccountId(authAccount.getId())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found in primary database"));
+
+        // 3. Build custom principal with data from both databases
+        return MyUserPrincipal.builder()
+                .id(authAccount.getId())
+                .userId(user.getId())
+                .username(authAccount.getUsername())
+                .password(authAccount.getPasswordHash())
+                .authorities(user.getRolesAsAuthorities())
+                .taxCode(user.getTaxCode()) // Custom field from business entity
+                .build();
+    }
+}
+```
+
+**Why**: Loads complete user data from both databases during login, stores it in JWT, eliminates cross-database queries on subsequent requests.
+
+#### Step 5: Configure Public Access for Signup Endpoint
+
+Add your custom signup endpoint to the allowed endpoints list:
+
+```yaml
+blackout:
+  filterchain:
+    allowed:
+      - "/user/**" # Allow access to custom signup endpoint
+```
+
+**Or** for more granular control:
+
+```yaml
+blackout:
+  filterchain:
+    allowed:
+      - "/user/signup" # Allow only signup endpoint
+```
+
+#### Cross-Database Transaction Considerations
+
+When working with separate databases:
+
+1. **No distributed transactions**: Spring's `@Transactional` only works for a single database. Two databases = two separate transactions.
+
+2. **Manual rollback pattern**: If the second operation fails, manually undo the first operation (as shown in the try-catch block above).
+
+3. **Cleanup jobs**: Consider implementing a cleanup job that removes orphaned `AuthAccount` records (auth accounts without corresponding business entities).
+
+#### Cross-Database Transaction Rules
+
+When working with `authAccountRepo` and `AuthAccount` entities, always specify the transaction manager:
+
+```java
+// For auth database (REQUIRED)
+@Transactional("blackoutTransactionManager")
+public void authOperation() {
+    authAccountRepo.save(...);
+}
+
+// For primary database (default)
+@Transactional
+public void businessOperation() {
+    userRepository.save(...);
+}
+```
+
+**Important**: A single `@Transactional` method cannot manage transactions across both databases. You must create separate methods:
+- One method annotated with `@Transactional` for primary database operations
+- One method annotated with `@Transactional("blackoutTransactionManager")` for auth database operations
+
+Then call these methods from a non-transactional coordinator method that handles manual rollback if needed (as shown in the example above).
+
 
 ### Minimal Configuration
 
