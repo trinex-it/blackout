@@ -78,7 +78,7 @@ public class OpenApiProperties {
      * Paths to include in documentation.
      * Default: all paths included
      */
-    private List<String> pathsToMatch;
+    private List<String> pathsToMatch = List.of("/**");
 
     /**
      * Paths to exclude from documentation.

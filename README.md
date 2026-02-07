@@ -8,6 +8,7 @@ A Spring Boot starter that provides JWT-based authentication and authorization w
   - [Authentication Endpoints](#authentication-endpoints)
   - [User Registration](#user-registration)
   - [Two-Factor Authentication](#two-factor-authentication)
+  - [Account Disabling](#account-disabling)
   - [Security Configuration](#security-configuration)
   - [Multi-Database Architecture](#multi-database-architecture)
   - [Custom User Principals](#custom-user-principals)
@@ -20,20 +21,22 @@ A Spring Boot starter that provides JWT-based authentication and authorization w
   - [Add the Dependency](#2-add-the-dependency)
   - [Minimum Requirements](#3-minimum-requirements)
 - [Configuration](#configuration)
+  - [Configuring a Custom Base URL](#configuring-a-custom-base-url)
   - [Defining and Using a Custom User Principal](#defining-and-using-a-custom-user-principal)
   - [Custom User Registration](#custom-user-registration)
+  - [Account Disabling](#account-disabling-1)
   - [Minimal Configuration](#minimal-configuration)
   - [Complete Configuration Example](#complete-configuration-example)
 
 ## Features
 
-**Base URL**: All Blackout endpoints are prefixed with `/api` by default. Configure the base path via `blackout.base-url` property.
+**Base URL**: All Blackout endpoints are not prefixed by default, but a custom base URL prefix is configurable with .yml properties.
 
 ### Authentication Endpoints
 
 Blackout provides ready-to-use REST endpoints for authentication:
 
-#### POST {base-url}/auth/login
+#### POST /auth/login
 
 Authenticates users with email/username and password, and returns JWT tokens.
 
@@ -56,7 +59,7 @@ Authenticates users with email/username and password, and returns JWT tokens.
 }
 ```
 
-#### POST {base-url}/auth/refresh
+#### POST /auth/refresh
 
 Refreshes an expired access token using a valid refresh token with automatic token rotation.
 
@@ -77,7 +80,7 @@ Refreshes an expired access token using a valid refresh token with automatic tok
 }
 ```
 
-#### GET {base-url}/auth/status
+#### GET /auth/status
 
 Returns information about the currently authenticated user.
 
@@ -94,7 +97,7 @@ Returns information about the currently authenticated user.
 
 ### User Registration
 
-#### POST {base-url}/signup
+#### POST /signup
 
 Optional basic registration endpoint (configurable via `blackout.signup.enabled`). Recommended to implement custom registration logic in your application for production scenarios and cross-database features, implementation example is shown at [Custom User Registration](#custom-user-registration)
 
@@ -116,7 +119,7 @@ Optional basic registration endpoint (configurable via `blackout.signup.enabled`
 
 Blackout provides TOTP-based (Time-based One-Time Password) two-factor authentication using authenticator apps like Google Authenticator, Authy, or similar.
 
-#### GET {base-url}/2fa
+#### GET /2fa
 
 Generates a TOTP secret key and QR code for setting up two-factor authentication.
 
@@ -138,7 +141,7 @@ Generates a TOTP secret key and QR code for setting up two-factor authentication
 - `401` - User not authenticated
 - `409` - 2FA is already enabled for this user
 
-#### POST {base-url}/2fa
+#### POST /2fa
 
 Enables two-factor authentication for the current user by validating a TOTP code.
 
@@ -173,7 +176,7 @@ Enables two-factor authentication for the current user by validating a TOTP code
 - `400` - Invalid TOTP code or secret
 - `401` - User not authenticated
 
-#### POST {base-url}/2fa/disable
+#### POST /2fa/disable
 
 Disables two-factor authentication for the current user.
 
@@ -193,7 +196,7 @@ Disables two-factor authentication for the current user.
 
 **Note**: The endpoint requires a valid TOTP code to ensure the user has access to their authenticator app before disabling 2FA. Once disabled, the user will only need email and password to log in.
 
-#### POST {base-url}/2fa/disable-recovery
+#### POST /2fa/disable-recovery
 
 Disables two-factor authentication using a recovery code. Use this endpoint when you've lost access to your authenticator app.
 
@@ -225,7 +228,7 @@ When 2FA is enabled, the login endpoint behavior changes:
 
 1. **First login attempt** (without TOTP code):
    ```json
-   POST {base-url}/auth/login
+   POST /auth/login
    {
      "email": "user@example.com",
      "password": "SecurePassword123!"
@@ -240,7 +243,7 @@ When 2FA is enabled, the login endpoint behavior changes:
 
 2. **Second login attempt** (with TOTP code):
    ```json
-   POST {base-url}/auth/login
+   POST /auth/login
    {
      "email": "user@example.com",
      "password": "SecurePassword123!",
@@ -257,6 +260,15 @@ When 2FA is enabled, the login endpoint behavior changes:
      "needOTP": false
    }
    ```
+
+
+### Account Disabling
+
+Blackout provides `disableUser` and `enableUser` methods to manage account status through the `AuthService`. When an account is disabled, the user cannot authenticate or obtain JWT tokens.
+
+Disabled accounts are rejected during login attempts with an appropriate error message. Accounts can be re-enabled through the `enableUser` service method.
+
+**Note**: Implementation details are found below
 
 
 ### Security Configuration
@@ -419,7 +431,7 @@ Add the Blackout dependency to your `pom.xml`:
 <dependency>
     <groupId>it.trinex</groupId>
     <artifactId>blackout</artifactId>
-    <version>1.0.2</version>
+    <version>1.0.3</version>
 </dependency>
 ```
 
@@ -427,9 +439,40 @@ Add the Blackout dependency to your `pom.xml`:
 
 - Java 21+
 - Spring Boot 4.0.2+
+- Spring Web
 - MySQL/PostgreSQL/H2 database
 
 ## Configuration
+
+### Configuring a custom base url
+
+Blackout provides two ways to configure a base URL for your application's endpoints.
+
+#### Option 1: Application-wide Base URL (Recommended)
+
+Set `server.servlet.context-path` to apply a base URL to your entire Spring application, including all Blackout endpoints:
+
+```yaml
+server:
+  servlet:
+    context-path: /api
+```
+
+With this configuration:
+- Blackout endpoints become: `/api/auth/login`, `/api/auth/refresh`, etc.
+- Your application endpoints also use the `/api` prefix
+- This is the recommended approach for consistency
+
+#### Option 2: Library-specific Base URL
+
+If you only want to set the base URL for Blackout endpoints without affecting your application, use `blackout.base-url`:
+
+```yaml
+blackout:
+  base-url: /api
+```
+
+**Note**: This only affects Blackout's authentication endpoints (`/api/auth/*`), not your application's endpoints.
 
 ### Defining and Using a Custom User Principal
 
@@ -538,8 +581,9 @@ public class MyUserDetailsService implements UserDetailsService {
         // 5. Return your custom principal with all fields
         return MyUserPrincipal.builder()
                 // Default Blackout fields
-                .id(authAccount.getId())
+                .authId(authAccount.getId())
                 .userId(user.getId())
+                .email(user.getEmail())
                 .authorities(authorities)
                 .username(username)
                 .password(authAccount.getPasswordHash())
@@ -690,11 +734,9 @@ public class UserService {
             );
 
             // 2. Create business entity in primary database
+            // Note is not necessary to save email, password, firstName and lastName in the user entity since 
+            // those fields are already included in the linked AuthAccount entity
             User user = User.builder()
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .username(request.getUsername())    
-                .email(request.getEmail())
                 .taxCode(request.getTaxCode())
                 .authAccountId(authAccount.getId()) // ← CRITICAL: Link to AuthAccount
                 .build();
@@ -813,6 +855,71 @@ public void businessOperation() {
 
 Then call these methods from a non-transactional coordinator method that handles manual rollback if needed (as shown in the example above).
 
+### Account Disabling
+
+Blackout provides two methods to manage account status:
+- `authService.disableUser(String subject)` - Temporarily disables an `AuthAccount`
+- `authService.enableUser(String subject)` - Re-enables a previously disabled account
+
+When an account is disabled, the user cannot authenticate or obtain JWT tokens.
+
+**Why No Built-in Endpoint?**
+
+Blackout doesn't expose a public endpoint for disabling accounts because the library doesn't manage roles. Without role-based access control, any authenticated user could disable others' accounts, which is a security risk.
+
+**Implementation in Your Application**
+
+Instead, create your own controller with role-based access control:
+
+```java
+@RestController
+@RequestMapping("/api/admin")
+@RequiredArgsConstructor
+public class AdminController {
+
+    private final AuthService authService;
+
+    @PostMapping("/disable-user")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> disableUser(@RequestBody DisableUserRequest request) {
+        authService.disableUser(request.getSubject()); // username or email
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/enable-user")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> enableUser(@RequestBody EnableUserRequest request) {
+        authService.enableUser(request.getSubject()); // username or email
+        return ResponseEntity.ok().build();
+    }
+}
+```
+
+**Request DTOs:**
+```java
+public record DisableUserRequest(String subject) {}
+public record EnableUserRequest(String subject) {}
+```
+
+**Usage:**
+```bash
+# Disable a user
+POST /api/admin/disable-user
+{
+  "subject": "user@example.com"  // username or email
+}
+
+# Enable a user
+POST /api/admin/enable-user
+{
+  "subject": "user@example.com"  // username or email
+}
+```
+
+**Security Features:**
+- Users cannot disable themselves (throws `INVALID_OPERATION` exception)
+- Disabled accounts cannot log in or refresh tokens
+- Re-enabling is done through the `enableUser` method (no self-restriction)
 
 ### Minimal Configuration
 
@@ -843,10 +950,10 @@ blackout:
 **Defaults applied**: Blackout will automatically use the primary application database for authentication if `blackout.datasource.*` is not configured, use `/api` as base URL, enable CORS with open access.
 
 **Publicly accessible endpoints** (no authentication required):
-- `{base-url}/auth/**` - Authentication endpoints (login, refresh, status)
+- `/auth/**` - Authentication endpoints (login, refresh, status)
 - `/error` - Error page
 - `/swagger-ui/**`, `/v3/api-docs/**`, `/swagger-ui.html` - Swagger/OpenAPI documentation
-- `{base-url}/signup` - User registration (only if `blackout.signup.enabled=true`)
+- `/signup` - User registration (only if `blackout.signup.enabled=true`)
 
 ### Complete Configuration Example
 
@@ -855,6 +962,8 @@ Here's a complete `application.yml` example showing all Blackout configuration o
 ```yaml
 server:
   port: 8090 # Server port [8080]
+  servlet:
+    context-path: /api
 
 spring:
   application:
@@ -866,7 +975,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver # MySQL JDBC driver
 
 blackout:
-  base-url: /api # Base URL for all API endpoints [/api]
+  base-url:  # Base URL for all blackout API endpoints []. It is recommended to take a look at base url configuration in the docs.
 
   # !!REQUIRED!! Config to access and configure primary datasource
   parent:
@@ -904,9 +1013,9 @@ blackout:
   # Security filter chain rules
   filterchain:
     allowed: # Endpoints accessible without authentication []
-      - "/everyone/**"
+      - "/api/everyone/**"
     authenticated: # Endpoints requiring authentication []
-      - "/showidplease/**"
+      - "/api/showidplease/**"
 
   # OpenAPI/Swagger configuration
   openapi:
@@ -921,10 +1030,10 @@ blackout:
     paths-to-match: # !!REQUIRED!! Paths to include in OpenAPI documentation 
       - "/api/**"
 
-  # User registration configuration
+  # Default User registration configuration (it is recommended to implement your own registration as this will only create the AuthAccount without any link to your application entities)
   signup:
     enabled: false # Enable default user registration endpoint [false]
-    default-role: USER # Default role for new users [USER]
+    default-role: USER # Default role for new users (only in case default signup is enabled) [USER]
 ```
 
 **Important Notes**:

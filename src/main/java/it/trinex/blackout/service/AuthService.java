@@ -1,19 +1,16 @@
 package it.trinex.blackout.service;
 
-import it.trinex.blackout.exception.InvalidTOTPCodeException;
-import it.trinex.blackout.exception.UserNotFoundException;
+import it.trinex.blackout.exception.*;
 import it.trinex.blackout.repository.AuthAccountRepo;
 import it.trinex.blackout.dto.response.AuthResponseDTO;
 import it.trinex.blackout.dto.response.AuthStatusResponseDTO;
-import it.trinex.blackout.exception.DuplicateKeyException;
-import it.trinex.blackout.exception.InvalidTokenException;
-import it.trinex.blackout.exception.UnauthorizedException;
 import it.trinex.blackout.model.AuthAccount;
 import it.trinex.blackout.security.BlackoutUserPrincipal;
 import it.trinex.blackout.properties.JwtProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -36,6 +33,7 @@ public class AuthService {
     private final JwtProperties jwtProperties;
     private final UserDetailsService userDetailsService;
     private final TOTPService totpService;
+    private final CurrentUserService currentUserService;
 
     public AuthResponseDTO login(String subject, String password, Boolean rememberMe, String totpCode) {
         log.info("Login attempt for user: '{}' ", subject);
@@ -90,6 +88,37 @@ public class AuthService {
             .access_token_expiration(accessTokenExpirationMs)
             .refresh_token_expiration(refreshTokenMaxAge)
             .build();
+    }
+
+    public void disableUser(String subject) {
+        AuthAccount authAccount = authAccountRepo.findByUsername(subject).orElse(
+                authAccountRepo.findByEmail(subject).orElseThrow(
+                        () -> new UsernameNotFoundException("Username not found: " + subject)
+                )
+        );
+
+        BlackoutUserPrincipal operator = currentUserService.getCurrentPrincipal();
+        if(operator.getAuthId().equals(authAccount.getId())) {
+            throw new BlackoutException(
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_OPERATION",
+                    "It is not allowed to self-disable an authAccount"
+            );
+        }
+
+        authAccount.setActive(false);
+        authAccountRepo.save(authAccount);
+    }
+
+    public void enableUser(String subject) {
+        AuthAccount authAccount = authAccountRepo.findByUsername(subject).orElse(
+                authAccountRepo.findByEmail(subject).orElseThrow(
+                        () -> new UsernameNotFoundException("Username not found: " + subject)
+                )
+        );
+
+        authAccount.setActive(true);
+        authAccountRepo.save(authAccount);
     }
 
     public AuthResponseDTO refreshToken(String refreshToken) {
