@@ -7,6 +7,7 @@ import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import it.trinex.blackout.properties.BlackoutProperties;
 import it.trinex.blackout.properties.OpenApiProperties;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.models.GroupedOpenApi;
@@ -33,11 +34,12 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnWebApplication
 @ConditionalOnClass(GroupedOpenApi.class)
 @ConditionalOnProperty(prefix = "blackout.openapi", name = "enabled", havingValue = "true", matchIfMissing = true)
-@EnableConfigurationProperties(OpenApiProperties.class)
+@EnableConfigurationProperties({OpenApiProperties.class, BlackoutProperties.class})
 @RequiredArgsConstructor
 public class OpenApiConfig {
 
     private final OpenApiProperties openApiProperties;
+    private final BlackoutProperties blackoutProperties;
 
     /**
      * Configures the main OpenAPI bean with API metadata and JWT security scheme.
@@ -77,18 +79,20 @@ public class OpenApiConfig {
 
         openApi.setInfo(info);
 
-        // Configure JWT Bearer authentication security scheme
-        SecurityScheme securityScheme = new SecurityScheme()
-                .type(SecurityScheme.Type.HTTP)
-                .scheme("bearer")
-                .bearerFormat("JWT")
-                .description("JWT authentication token. Use the format: Bearer <your-jwt-token>");
+        // Configure JWT Bearer authentication security scheme (unless using cookie-based auth)
+        if (!blackoutProperties.isCookie()) {
+            SecurityScheme securityScheme = new SecurityScheme()
+                    .type(SecurityScheme.Type.HTTP)
+                    .scheme("bearer")
+                    .bearerFormat("JWT")
+                    .description("JWT authentication token. Use the format: Bearer <your-jwt-token>");
 
-        SecurityRequirement securityRequirement = new SecurityRequirement()
-                .addList("bearerAuth");
+            SecurityRequirement securityRequirement = new SecurityRequirement()
+                    .addList("bearerAuth");
 
-        openApi.components(new Components().addSecuritySchemes("bearerAuth", securityScheme));
-        openApi.addSecurityItem(securityRequirement);
+            openApi.components(new Components().addSecuritySchemes("bearerAuth", securityScheme));
+            openApi.addSecurityItem(securityRequirement);
+        }
 
         return openApi;
     }

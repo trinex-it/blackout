@@ -300,6 +300,23 @@ Disabled accounts are rejected during login attempts with an appropriate error m
 
 - **Swagger UI** - Auto-generated API documentation available at `/swagger-ui/index.html`
 - **Configurable Metadata** - Customize title, description, version, and contact info via `blackout.openapi.*` properties
+- **Cookie-based Authentication** - Set `blackout.cookie=true` to disable JWT Bearer security scheme in Swagger UI, enabling automatic cookie-based authentication
+
+#### Cookie-based Authentication vs JWT Bearer
+
+Blackout supports two authentication modes that can be configured via `blackout.cookie`:
+
+**Default Mode (`blackout.cookie: false`):**
+- Swagger UI displays an "Authorize" button
+- Users manually enter JWT token in the format: `Bearer <token>`
+- Token sent via `Authorization: Bearer <token>` header
+- Ideal for: API testing, mobile apps, SPAs with custom auth flows
+
+**Cookie Mode (`blackout.cookie: true`):**
+- Swagger UI has no "Authorize" button
+- Browser automatically sends `access_token` cookie with each request
+- Users authenticate via `/api/auth/login` endpoint which sets the cookie
+- Ideal for: Traditional web applications, server-rendered pages
 
 ### Overrideable Beans
 
@@ -976,6 +993,7 @@ spring:
 
 blackout:
   base-url:  # Base URL for all blackout API endpoints []. It is recommended to take a look at base url configuration in the docs.
+  cookie: false # Use cookie-based authentication [false]
 
   # !!REQUIRED!! Config to access and configure primary datasource
   parent:
