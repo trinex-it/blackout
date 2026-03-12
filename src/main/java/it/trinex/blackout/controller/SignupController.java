@@ -46,7 +46,8 @@ public class SignupController {
 
         // Create new AuthAccount
         AuthAccount authAccount = new AuthAccount();
-        authAccount.setUsername(request.getEmail());
+        authAccount.setEmail(request.getEmail());
+        authAccount.setUsername(request.getUsername());
         authAccount.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         authAccount.setFirstName("");
         authAccount.setLastName("");

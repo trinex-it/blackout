@@ -68,8 +68,8 @@ public class BlackoutAutoconfig {
     }
 
     @Bean
-    public TOTPService totpService(TOTPProperties tOTPProperties, SecretGenerator secretGenerator, AuthAccountRepo authAccountRepo, QrGenerator qrGenerator, CodeVerifier codeVerifier, CurrentUserService currentUserService, RecoveryCodeGenerator recoveryCodeGenerator, PasswordEncoder passwordEncoder) {
-        return new TOTPService(tOTPProperties, secretGenerator, authAccountRepo, qrGenerator, codeVerifier, currentUserService, recoveryCodeGenerator, passwordEncoder);
+    public TOTPService totpService(TOTPProperties tOTPProperties, SecretGenerator secretGenerator, AuthAccountRepo authAccountRepo, QrGenerator qrGenerator, CodeVerifier codeVerifier, CurrentUserService currentUserService, RecoveryCodeGenerator recoveryCodeGenerator, AuthenticationManager authenticationManager) {
+        return new TOTPService(tOTPProperties, secretGenerator, authAccountRepo, qrGenerator, codeVerifier, currentUserService, recoveryCodeGenerator, authenticationManager);
     }
 
     @Bean
@@ -78,8 +78,8 @@ public class BlackoutAutoconfig {
     }
 
     @Bean
-    public AuthService authService(AuthenticationManager authenticationManager, JwtService jWTService, AuthAccountRepo authAccountRepo, JwtProperties jwtProperties, UserDetailsService userDetailsService, TOTPService totpService) {
-        return new AuthService(authenticationManager, jWTService, authAccountRepo, jwtProperties, userDetailsService, totpService);
+    public AuthService authService(AuthenticationManager authenticationManager, JwtService jWTService, AuthAccountRepo authAccountRepo, JwtProperties jwtProperties, UserDetailsService userDetailsService, TOTPService totpService, CurrentUserService currentUserService) {
+        return new AuthService(authenticationManager, jWTService, authAccountRepo, jwtProperties, userDetailsService, totpService, currentUserService);
     }
 
 }

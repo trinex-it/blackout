@@ -18,6 +18,10 @@ import it.trinex.blackout.properties.TOTPProperties;
 import it.trinex.blackout.repository.AuthAccountRepo;
 import it.trinex.blackout.security.BlackoutUserPrincipal;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -37,7 +41,7 @@ public class TOTPService {
     private final CodeVerifier codeVerifier;
     private final CurrentUserService currentUserService;
     private final RecoveryCodeGenerator recoveryCodeGenerator;
-    private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
 
     public TFAEnabledResponse enable2FA(String secret, String totp) throws QrGenerationException {
         if(codeVerifier.isValidCode(secret, totp)) {
@@ -73,13 +77,20 @@ public class TOTPService {
 
     @Transactional("blackoutTransactionManager")
     public void disable2FAWithRecoveryCode(Disable2FAWithRecoveryRequest request) {
-        AuthAccount authAccount = authAccountRepo.findByUsername(request.getSubject()).orElse(
-                authAccountRepo.findByEmail(request.getSubject())
-                        .orElseThrow(() -> new UsernameNotFoundException("User with email: " + request.getSubject() + " not found"))
-        );
-        if(!authAccount.getPasswordHash().equals(passwordEncoder.encode(request.getPassword()))) {
+        Authentication authentication;
+        try {
+            authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getSubject(),
+                            request.getPassword()));
+        } catch (AuthenticationException e) {
             throw new UnauthorizedException("Invalid username or password");
         }
+
+        AuthAccount authAccount = authAccountRepo.findByUsername(request.getSubject()).orElse(
+                authAccountRepo.findByEmail(request.getSubject()).get()
+        );
+
         String secret = authAccount.getTotpSecret();
         if(secret == null || secret.isBlank()) {
             throw new TFANotEnabledException("2FA code is not enabled");

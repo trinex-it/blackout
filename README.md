@@ -8,7 +8,7 @@ A Spring Boot starter that provides JWT-based authentication and authorization w
   - [Authentication Endpoints](#authentication-endpoints)
   - [User Registration](#user-registration)
   - [Two-Factor Authentication](#two-factor-authentication)
-  - [Custom User Registration](#custom-user-registration)
+  - [Account Disabling](#account-disabling)
   - [Security Configuration](#security-configuration)
   - [Multi-Database Architecture](#multi-database-architecture)
   - [Custom User Principals](#custom-user-principals)
@@ -17,30 +17,33 @@ A Spring Boot starter that provides JWT-based authentication and authorization w
   - [Overrideable Beans](#overrideable-beans)
   - [Auto-Configuration](#auto-configuration)
 - [Installation](#installation)
-  - [Add the Maven Repository](#1-add-the-maven-repository)
+  - [Configure Maven Repository](#1-configure-maven-repository)
   - [Add the Dependency](#2-add-the-dependency)
   - [Minimum Requirements](#3-minimum-requirements)
 - [Configuration](#configuration)
+  - [Configuring a Custom Base URL](#configuring-a-custom-base-url)
   - [Defining and Using a Custom User Principal](#defining-and-using-a-custom-user-principal)
+  - [Custom User Registration](#custom-user-registration)
+  - [Account Disabling](#account-disabling-1)
   - [Minimal Configuration](#minimal-configuration)
   - [Complete Configuration Example](#complete-configuration-example)
 
 ## Features
 
-**Base URL**: All Blackout endpoints are prefixed with `/api` by default. Configure the base path via `blackout.base-url` property.
+**Base URL**: All Blackout endpoints are not prefixed by default, but a custom base URL prefix is configurable with .yml properties.
 
 ### Authentication Endpoints
 
 Blackout provides ready-to-use REST endpoints for authentication:
 
-#### POST {base-url}/auth/login
+#### POST /auth/login
 
-Authenticates users with email/password and returns JWT tokens.
+Authenticates users with email/username and password, and returns JWT tokens.
 
 **Request Body (`LoginRequestDTO`)**:
 ```json
 {
-  "email": "user@example.com",
+  "subject": "user@example.com",
   "password": "SecurePassword123!",
   "rememberMe": true
 }
@@ -56,7 +59,7 @@ Authenticates users with email/password and returns JWT tokens.
 }
 ```
 
-#### POST {base-url}/auth/refresh
+#### POST /auth/refresh
 
 Refreshes an expired access token using a valid refresh token with automatic token rotation.
 
@@ -77,7 +80,7 @@ Refreshes an expired access token using a valid refresh token with automatic tok
 }
 ```
 
-#### GET {base-url}/auth/status
+#### GET /auth/status
 
 Returns information about the currently authenticated user.
 
@@ -94,14 +97,15 @@ Returns information about the currently authenticated user.
 
 ### User Registration
 
-#### POST {base-url}/signup
+#### POST /signup
 
-Optional basic registration endpoint (configurable via `blackout.signup.enabled`). Recommended to implement custom registration logic in your application for production scenarios and cross-database features, implementation example is shown below.
+Optional basic registration endpoint (configurable via `blackout.signup.enabled`). Recommended to implement custom registration logic in your application for production scenarios and cross-database features, implementation example is shown at [Custom User Registration](#custom-user-registration)
 
 **Request Body (`SignupRequestDTO`)**:
 ```json
 {
   "email": "user@example.com",
+  "username": "myUsername03",
   "password": "SecurePassword123!",
   "confirmPassword": "SecurePassword123!"
 }
@@ -115,7 +119,7 @@ Optional basic registration endpoint (configurable via `blackout.signup.enabled`
 
 Blackout provides TOTP-based (Time-based One-Time Password) two-factor authentication using authenticator apps like Google Authenticator, Authy, or similar.
 
-#### GET {base-url}/2fa
+#### GET /2fa
 
 Generates a TOTP secret key and QR code for setting up two-factor authentication.
 
@@ -137,7 +141,7 @@ Generates a TOTP secret key and QR code for setting up two-factor authentication
 - `401` - User not authenticated
 - `409` - 2FA is already enabled for this user
 
-#### POST {base-url}/2fa
+#### POST /2fa
 
 Enables two-factor authentication for the current user by validating a TOTP code.
 
@@ -172,7 +176,7 @@ Enables two-factor authentication for the current user by validating a TOTP code
 - `400` - Invalid TOTP code or secret
 - `401` - User not authenticated
 
-#### POST {base-url}/2fa/disable
+#### POST /2fa/disable
 
 Disables two-factor authentication for the current user.
 
@@ -192,7 +196,7 @@ Disables two-factor authentication for the current user.
 
 **Note**: The endpoint requires a valid TOTP code to ensure the user has access to their authenticator app before disabling 2FA. Once disabled, the user will only need email and password to log in.
 
-#### POST {base-url}/2fa/disable-recovery
+#### POST /2fa/disable-recovery
 
 Disables two-factor authentication using a recovery code. Use this endpoint when you've lost access to your authenticator app.
 
@@ -224,7 +228,7 @@ When 2FA is enabled, the login endpoint behavior changes:
 
 1. **First login attempt** (without TOTP code):
    ```json
-   POST {base-url}/auth/login
+   POST /auth/login
    {
      "email": "user@example.com",
      "password": "SecurePassword123!"
@@ -239,7 +243,7 @@ When 2FA is enabled, the login endpoint behavior changes:
 
 2. **Second login attempt** (with TOTP code):
    ```json
-   POST {base-url}/auth/login
+   POST /auth/login
    {
      "email": "user@example.com",
      "password": "SecurePassword123!",
@@ -256,6 +260,370 @@ When 2FA is enabled, the login endpoint behavior changes:
      "needOTP": false
    }
    ```
+
+
+### Account Disabling
+
+Blackout provides `disableUser` and `enableUser` methods to manage account status through the `AuthService`. When an account is disabled, the user cannot authenticate or obtain JWT tokens.
+
+Disabled accounts are rejected during login attempts with an appropriate error message. Accounts can be re-enabled through the `enableUser` service method.
+
+**Note**: Implementation details are found below
+
+
+### Security Configuration
+
+- **Flexible Filter Chain** - Configure allowed and authenticated endpoints via `blackout.filterchain.allowed` and `blackout.filterchain.authenticated` properties
+- **CORS Support** - Easily configure CORS policies with `blackout.cors.*` properties (origins, methods, headers, credentials)
+
+### Multi-Database Architecture
+
+- **Dual DataSource** - Automatic separation between authentication data and business data
+- **Auth Database** - Managed by Blackout, stores `AuthAccount` entities (configured via `blackout.datasource.*`)
+- **Primary Database** - Your application's business entities (configured via `spring.datasource.*`)
+- **Independent JPA Contexts** - Separate `EntityManagerFactory` and `PlatformTransactionManager` for each database
+
+### Custom User Principals
+
+- **Extensible User Principal** - Extend `BlackoutUserPrincipal` to add custom user data
+- **JWT Claims Integration** - Custom fields automatically included in JWT tokens
+- **Type-Safe Access** - Use typed `CurrentUserService<T>` to access authenticated users in controllers
+- **Principal Factory Pattern** - Reconstruct custom principals from JWT claims on each request
+
+### JWT Configuration
+
+- **Configurable Expiration** - Set access token and refresh token expiration times via `blackout.jwt.*` properties
+- **Token Rotation** - Automatic refresh token rotation on every refresh for enhanced security
+- **Secret Key** - Configure JWT signing key with `blackout.jwt.secret`
+
+### OpenAPI Integration
+
+- **Swagger UI** - Auto-generated API documentation available at `/swagger-ui/index.html`
+- **Configurable Metadata** - Customize title, description, version, and contact info via `blackout.openapi.*` properties
+
+### Overrideable Beans
+
+Blackout provides sensible defaults for all its core components through Spring's `@ConditionalOnMissingBean` annotation. This means you can override any bean by simply declaring your own in a configuration class.
+
+#### How to Override Beans
+
+Create a configuration class (similar to `BlackoutConfig.java` in the test application) and declare the beans you want to customize:
+
+```java
+@Configuration
+public class MyCustomConfig {
+
+    // Example: Override the default PasswordEncoder
+    @Bean
+    @Primary
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(12); // Custom strength
+    }
+
+    // Example: Override the default SecurityFilterChain
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/public/**").permitAll()
+                .anyRequest().authenticated()
+            );
+        return http.build();
+    }
+}
+```
+
+#### Complete List of Overrideable Beans
+
+All beans listed below can be overridden by declaring your own `@Bean` method with the same return type or bean name:
+
+**Security & Authentication:**
+- `SecurityFilterChain` - Configures HTTP security rules, filter chains, and endpoint permissions
+- `AuthenticationProvider` - Custom authentication logic (e.g., integrate with external auth services)
+- `AuthenticationManager` - Manages authentication requests
+- `PasswordEncoder` - Password hashing algorithm (default: BCrypt)
+- `CorsConfigurationSource` - CORS policies and allowed origins/methods/headers
+
+**JWT & User Management:**
+- `BlackoutPrincipalFactory` - Factory for reconstructing user principals from JWT claims
+- `CurrentUserService<P>` - Type-safe service for accessing the current authenticated user in controllers
+
+**Auth Database (`blackout.datasource.*`):**
+- `blackoutDataSource` - DataSource for authentication database
+- `blackoutEntityManager` - JPA EntityManagerFactory for auth entities
+- `blackoutTransactionManager` - PlatformTransactionManager for auth database operations
+
+**Primary Database (`spring.datasource.*` / `blackout.parent.datasource.*`):**
+- `parentDataSource` - DataSource for your application's business database
+- `entityManagerFactory` - JPA EntityManagerFactory for business entities
+- `parentTransactionManager` - PlatformTransactionManager for primary database (marked as `@Primary`)
+
+**Controllers:**
+- `authController` - REST controller for `/api/auth/login`, `/api/auth/refresh`, `/api/auth/status`
+
+**OpenAPI/Swagger:**
+- `customOpenAPI` - OpenAPI metadata (title, description, version, license, contact info)
+- `groupedOpenAPI` - GroupedOpenApi configuration for path matching and documentation
+
+**Note:** When overriding beans that are used by other Blackout components, ensure your implementation maintains compatibility with the expected interfaces and contracts.
+
+### Auto-Configuration
+
+All components are automatically configured via Spring Boot's auto-configuration mechanism:
+- Security filter chain with JWT authentication
+- Authentication provider with BCrypt password encoding
+- JPA repositories and entity manager for auth database
+- CORS configuration source
+
+## Installation
+
+### 1. Configure Maven Repository
+
+Blackout is distributed via GitHub Packages. Before adding the dependency, you need to configure the GitHub Maven repository and authenticate with a personal access token.
+
+#### Step 1: Add GitHub Repository to your `pom.xml`
+
+Add the GitHub Maven repository to your project's `pom.xml`:
+
+```xml
+<repositories>
+    <repository>
+        <id>github</id>
+        <url>https://maven.pkg.github.com/trinex-it/blackout</url>
+    </repository>
+</repositories>
+```
+
+**Why**: Maven needs to know where to download the Blackout library from. GitHub Packages hosts the official releases.
+
+#### Step 2: Configure `~/.m2/settings.xml`
+
+Add your GitHub credentials to Maven's settings file located at `~/.m2/settings.xml`:
+
+```xml
+<settings>
+    <servers>
+        <server>
+            <id>github</id>
+            <username>YOUR_GITHUB_USERNAME</username>
+            <password>YOUR_GITHUB_PERSONAL_ACCESS_TOKEN</password>
+        </server>
+    </servers>
+</settings>
+```
+
+**Important**: The `<id>` must match the repository ID defined in your `pom.xml` (in this case: `github`).
+
+**Why**: Maven uses the `settings.xml` file to authenticate with private repositories. Your credentials are encrypted and stored locally.
+
+**Security Note**:
+- Never commit your `settings.xml` file to version control
+- Use environment variables or CI/CD secrets for automated builds
+- Regularly rotate your personal access tokens
+- Consider using a dedicated service account for CI/CD pipelines
+
+### 2. Add the Dependency
+
+Add the Blackout dependency to your `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>it.trinex</groupId>
+    <artifactId>blackout</artifactId>
+    <version>1.0.3</version>
+</dependency>
+```
+
+### 3. Minimum Requirements
+
+- Java 21+
+- Spring Boot 4.0.2+
+- Spring Web
+- MySQL/PostgreSQL/H2 database
+
+## Configuration
+
+### Configuring a custom base url
+
+Blackout provides two ways to configure a base URL for your application's endpoints.
+
+#### Option 1: Application-wide Base URL (Recommended)
+
+Set `server.servlet.context-path` to apply a base URL to your entire Spring application, including all Blackout endpoints:
+
+```yaml
+server:
+  servlet:
+    context-path: /api
+```
+
+With this configuration:
+- Blackout endpoints become: `/api/auth/login`, `/api/auth/refresh`, etc.
+- Your application endpoints also use the `/api` prefix
+- This is the recommended approach for consistency
+
+#### Option 2: Library-specific Base URL
+
+If you only want to set the base URL for Blackout endpoints without affecting your application, use `blackout.base-url`:
+
+```yaml
+blackout:
+  base-url: /api
+```
+
+**Note**: This only affects Blackout's authentication endpoints (`/api/auth/*`), not your application's endpoints.
+
+### Defining and Using a Custom User Principal
+
+To add custom user data to your JWT tokens and access it in your controllers, follow these three steps:
+
+#### Step 1: Create Your Custom Principal
+
+Extend `BlackoutUserPrincipal` and add custom fields. Override `getExtraClaims()` to include these fields in JWT tokens:
+
+```java
+
+@Getter
+@SuperBuilder
+public class MyUserPrincipal extends BlackoutUserPrincipal {
+
+  private String taxCode;
+
+  @Override
+  public Map<String, Object> getExtraClaims() {
+    return Map.of(
+            "tax_code", taxCode
+    );
+  }
+}
+```
+
+**Why**: Custom fields are automatically included in JWT tokens during authentication and available on every request without database queries.
+
+#### Step 2: Create a Principal Factory
+
+Implement the factory that reconstructs your custom principal from JWT claims:
+
+```java
+@Component
+public class MyPrincipalFactory extends AbstractBlackoutPrincipalFactory<MyUserPrincipal> {
+
+    @Override
+    protected BlackoutUserPrincipal.BlackoutUserPrincipalBuilder<?, ?> getBuilder() {
+        return MyUserPrincipal.builder();
+    }
+    
+    
+
+    @Override
+    protected void applyCustomFields(Claims claims,
+                                      BlackoutUserPrincipal.BlackoutUserPrincipalBuilder<?, ?> builder) {
+        MyUserPrincipalBuilder<?, ?> myBuilder = (MyUserPrincipalBuilder<?, ?>) builder;
+        // Repeat this for all the extra fields
+        myBuilder.codiceFiscale(claims.get("codice_fiscale", String.class));
+    }
+}
+```
+
+**Why**: Automatically extracts custom fields from JWT claims and rebuilds your principal on each authenticated request.
+
+#### Step 3: Configure CurrentUserService Bean
+
+Create a typed `CurrentUserService` bean to access the authenticated user:
+
+```java
+@Configuration
+public class BlackoutConfig {
+
+    @Bean
+    public CurrentUserService<MyUserPrincipal> currentUserService() {
+        return new CurrentUserService<>();
+    }
+}
+```
+
+#### Step 4: Implement UserDetailsService
+
+To load your custom principal from the database during authentication, implement a `UserDetailsService` that queries both the auth database and your primary database:
+
+```java
+
+@Service
+@RequiredArgsConstructor
+public class MyUserDetailsService implements UserDetailsService {
+
+    private final UserRepo userRepo;
+    private final AuthAccountRepo authAccountRepo;
+
+    @Override
+    public BlackoutUserPrincipal loadUserByUsername(String username) throws UsernameNotFoundException {
+        // 1. Load AuthAccount from auth database
+        AuthAccount authAccount = authAccountRepo.findByUsername(username).orElse(
+                authAccountRepo.findByEmail(username)
+                        .orElseThrow(() -> new UsernameNotFoundException(username))
+        );
+
+        // 2. Check if account is active
+        if (!authAccount.isActive()) {
+            throw new AccountNotActiveException("Account not active: " + username);
+        }
+
+        // 3. Load your business entity from primary database
+        MyUser user = userRepo.findByAuthAccountId(authAccount.getId())
+                .orElseThrow(() -> new UsernameNotFoundException(username));
+
+        // 4. Build authorities
+        List<SimpleGrantedAuthority> authorities = utente.getRuoli().stream()
+                .map(r -> new SimpleGrantedAuthority("ROLE_" + r.toString()))
+                .toList();
+
+        // 5. Return your custom principal with all fields
+        return MyUserPrincipal.builder()
+                // Default Blackout fields
+                .authId(authAccount.getId())
+                .userId(user.getId())
+                .email(user.getEmail())
+                .authorities(authorities)
+                .username(username)
+                .password(authAccount.getPasswordHash())
+                // Your custom fields
+                .taxCode(user.getTaxCode())
+                .piattoPreferito(user.getPiattoPreferito())
+                .build();
+    }
+}
+```
+
+**Important**: This service is only used during **initial authentication** (login). After login, the JWT token contains all necessary data and no database queries are needed for subsequent requests.
+
+**Why**: Allows you to enrich your authenticated user with business data from your primary database while keeping authentication data separate.
+
+#### Step 5: Use in Your Controllers
+
+Inject and use the typed service to access the current user:
+
+```java
+@RestController
+@RequiredArgsConstructor
+public class MyController {
+
+    private final CurrentUserService<MyUserPrincipal> currentUserService;
+
+    @GetMapping("/me")
+    public MyUserPrincipal getCurrentUser() {
+        return currentUserService.getCurrentPrincipal();
+    }
+
+    @GetMapping("/my-tax-code")
+    public String getTaxCode() {
+        MyUserPrincipal user = currentUserService.getCurrentPrincipal();
+        return user.getTaxCode();
+    }
+}
+```
+
+**Why**: Provides type-safe, direct access to your custom authenticated user throughout your application.
 
 ### Custom User Registration
 
@@ -366,11 +734,9 @@ public class UserService {
             );
 
             // 2. Create business entity in primary database
+            // Note is not necessary to save email, password, firstName and lastName in the user entity since 
+            // those fields are already included in the linked AuthAccount entity
             User user = User.builder()
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .username(request.getUsername())    
-                .email(request.getEmail())
                 .taxCode(request.getTaxCode())
                 .authAccountId(authAccount.getId()) // ← CRITICAL: Link to AuthAccount
                 .build();
@@ -489,298 +855,71 @@ public void businessOperation() {
 
 Then call these methods from a non-transactional coordinator method that handles manual rollback if needed (as shown in the example above).
 
-### Security Configuration
+### Account Disabling
 
-- **Flexible Filter Chain** - Configure allowed and authenticated endpoints via `blackout.filterchain.allowed` and `blackout.filterchain.authenticated` properties
-- **CORS Support** - Easily configure CORS policies with `blackout.cors.*` properties (origins, methods, headers, credentials)
+Blackout provides two methods to manage account status:
+- `authService.disableUser(String subject)` - Temporarily disables an `AuthAccount`
+- `authService.enableUser(String subject)` - Re-enables a previously disabled account
 
-### Multi-Database Architecture
+When an account is disabled, the user cannot authenticate or obtain JWT tokens.
 
-- **Dual DataSource** - Automatic separation between authentication data and business data
-- **Auth Database** - Managed by Blackout, stores `AuthAccount` entities (configured via `blackout.datasource.*`)
-- **Primary Database** - Your application's business entities (configured via `spring.datasource.*`)
-- **Independent JPA Contexts** - Separate `EntityManagerFactory` and `PlatformTransactionManager` for each database
+**Why No Built-in Endpoint?**
 
-### Custom User Principals
+Blackout doesn't expose a public endpoint for disabling accounts because the library doesn't manage roles. Without role-based access control, any authenticated user could disable others' accounts, which is a security risk.
 
-- **Extensible User Principal** - Extend `BlackoutUserPrincipal` to add custom user data
-- **JWT Claims Integration** - Custom fields automatically included in JWT tokens
-- **Type-Safe Access** - Use typed `CurrentUserService<T>` to access authenticated users in controllers
-- **Principal Factory Pattern** - Reconstruct custom principals from JWT claims on each request
+**Implementation in Your Application**
 
-### JWT Configuration
-
-- **Configurable Expiration** - Set access token and refresh token expiration times via `blackout.jwt.*` properties
-- **Token Rotation** - Automatic refresh token rotation on every refresh for enhanced security
-- **Secret Key** - Configure JWT signing key with `blackout.jwt.secret`
-
-### OpenAPI Integration
-
-- **Swagger UI** - Auto-generated API documentation available at `/swagger-ui/index.html`
-- **Configurable Metadata** - Customize title, description, version, and contact info via `blackout.openapi.*` properties
-
-### Overrideable Beans
-
-Blackout provides sensible defaults for all its core components through Spring's `@ConditionalOnMissingBean` annotation. This means you can override any bean by simply declaring your own in a configuration class.
-
-#### How to Override Beans
-
-Create a configuration class (similar to `BlackoutConfig.java` in the test application) and declare the beans you want to customize:
-
-```java
-@Configuration
-public class MyCustomConfig {
-
-    // Example: Override the default PasswordEncoder
-    @Bean
-    @Primary
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12); // Custom strength
-    }
-
-    // Example: Override the default SecurityFilterChain
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(csrf -> csrf.disable())
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/public/**").permitAll()
-                .anyRequest().authenticated()
-            );
-        return http.build();
-    }
-}
-```
-
-#### Complete List of Overrideable Beans
-
-All beans listed below can be overridden by declaring your own `@Bean` method with the same return type or bean name:
-
-**Security & Authentication:**
-- `SecurityFilterChain` - Configures HTTP security rules, filter chains, and endpoint permissions
-- `AuthenticationProvider` - Custom authentication logic (e.g., integrate with external auth services)
-- `AuthenticationManager` - Manages authentication requests
-- `PasswordEncoder` - Password hashing algorithm (default: BCrypt)
-- `CorsConfigurationSource` - CORS policies and allowed origins/methods/headers
-
-**JWT & User Management:**
-- `BlackoutPrincipalFactory` - Factory for reconstructing user principals from JWT claims
-- `CurrentUserService<P>` - Type-safe service for accessing the current authenticated user in controllers
-
-**Auth Database (`blackout.datasource.*`):**
-- `blackoutDataSource` - DataSource for authentication database
-- `blackoutEntityManager` - JPA EntityManagerFactory for auth entities
-- `blackoutTransactionManager` - PlatformTransactionManager for auth database operations
-
-**Primary Database (`spring.datasource.*` / `blackout.parent.datasource.*`):**
-- `parentDataSource` - DataSource for your application's business database
-- `entityManagerFactory` - JPA EntityManagerFactory for business entities
-- `parentTransactionManager` - PlatformTransactionManager for primary database (marked as `@Primary`)
-
-**Controllers:**
-- `authController` - REST controller for `/api/auth/login`, `/api/auth/refresh`, `/api/auth/status`
-
-**OpenAPI/Swagger:**
-- `customOpenAPI` - OpenAPI metadata (title, description, version, license, contact info)
-- `groupedOpenAPI` - GroupedOpenApi configuration for path matching and documentation
-
-**Note:** When overriding beans that are used by other Blackout components, ensure your implementation maintains compatibility with the expected interfaces and contracts.
-
-### Auto-Configuration
-
-All components are automatically configured via Spring Boot's auto-configuration mechanism:
-- Security filter chain with JWT authentication
-- Authentication provider with BCrypt password encoding
-- JPA repositories and entity manager for auth database
-- CORS configuration source
-
-## Installation
-
-### 1. Add the Maven Repository
-
-Add the Gitea Maven repository to your project's `pom.xml`:
-
-```xml
-<repositories>
-    <repository>
-        <id>gitea</id>
-        <url>https://lab.0tb.it/api/packages/trinex/maven</url>
-        <snapshots>
-            <updatePolicy>always</updatePolicy>
-        </snapshots>
-    </repository>
-</repositories>
-```
-
-### 2. Add the Dependency
-
-Add the Blackout dependency to your `pom.xml`:
-
-```xml
-<dependency>
-    <groupId>it.trinex</groupId>
-    <artifactId>blackout</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
-</dependency>
-```
-
-### 3. Minimum Requirements
-
-- Java 21+
-- Spring Boot 4.0.2+
-- MySQL/PostgreSQL/H2 database
-
-## Configuration
-
-### Defining and Using a Custom User Principal
-
-To add custom user data to your JWT tokens and access it in your controllers, follow these three steps:
-
-#### Step 1: Create Your Custom Principal
-
-Extend `BlackoutUserPrincipal` and add custom fields. Override `getExtraClaims()` to include these fields in JWT tokens:
-
-```java
-
-@Getter
-@SuperBuilder
-public class MyUserPrincipal extends BlackoutUserPrincipal {
-
-  private String taxCode;
-
-  @Override
-  public Map<String, Object> getExtraClaims() {
-    return Map.of(
-            "tax_code", taxCode
-    );
-  }
-}
-```
-
-**Why**: Custom fields are automatically included in JWT tokens during authentication and available on every request without database queries.
-
-#### Step 2: Create a Principal Factory
-
-Implement the factory that reconstructs your custom principal from JWT claims:
-
-```java
-@Component
-public class MyPrincipalFactory extends AbstractBlackoutPrincipalFactory<MyUserPrincipal> {
-
-    @Override
-    protected BlackoutUserPrincipal.BlackoutUserPrincipalBuilder<?, ?> getBuilder() {
-        return MyUserPrincipal.builder();
-    }
-    
-    
-
-    @Override
-    protected void applyCustomFields(Claims claims,
-                                      BlackoutUserPrincipal.BlackoutUserPrincipalBuilder<?, ?> builder) {
-        MyUserPrincipalBuilder<?, ?> myBuilder = (MyUserPrincipalBuilder<?, ?>) builder;
-        // Repeat this for all the extra fields
-        myBuilder.codiceFiscale(claims.get("codice_fiscale", String.class));
-    }
-}
-```
-
-**Why**: Automatically extracts custom fields from JWT claims and rebuilds your principal on each authenticated request.
-
-#### Step 3: Configure CurrentUserService Bean
-
-Create a typed `CurrentUserService` bean to access the authenticated user:
-
-```java
-@Configuration
-public class BlackoutConfig {
-
-    @Bean
-    public CurrentUserService<MyUserPrincipal> currentUserService() {
-        return new CurrentUserService<>();
-    }
-}
-```
-
-#### Step 4: Implement UserDetailsService
-
-To load your custom principal from the database during authentication, implement a `UserDetailsService` that queries both the auth database and your primary database:
-
-```java
-
-@Service
-@RequiredArgsConstructor
-public class MyUserDetailsService implements UserDetailsService {
-
-    private final UserRepo userRepo;
-    private final AuthAccountRepo authAccountRepo;
-
-    @Override
-    public BlackoutUserPrincipal loadUserByUsername(String username) throws UsernameNotFoundException {
-        // 1. Load AuthAccount from auth database
-        AuthAccount authAccount = authAccountRepo.findByUsername(username).orElse(
-                authAccountRepo.findByEmail(username)
-                        .orElseThrow(() -> new UsernameNotFoundException(username))
-        );
-
-        // 2. Check if account is active
-        if (!authAccount.isActive()) {
-            throw new AccountNotActiveException("Account not active: " + username);
-        }
-
-        // 3. Load your business entity from primary database
-        MyUser user = userRepo.findByAuthAccountId(authAccount.getId())
-                .orElseThrow(() -> new UsernameNotFoundException(username));
-
-        // 4. Build authorities
-        List<SimpleGrantedAuthority> authorities = utente.getRuoli().stream()
-                .map(r -> new SimpleGrantedAuthority("ROLE_" + r.toString()))
-                .toList();
-
-        // 5. Return your custom principal with all fields
-        return MyUserPrincipal.builder()
-                // Default Blackout fields
-                .id(authAccount.getId())
-                .userId(user.getId())
-                .authorities(authorities)
-                .username(username)
-                .password(authAccount.getPasswordHash())
-                // Your custom fields
-                .taxCode(user.getTaxCode())
-                .piattoPreferito(user.getPiattoPreferito())
-                .build();
-    }
-}
-```
-
-**Important**: This service is only used during **initial authentication** (login). After login, the JWT token contains all necessary data and no database queries are needed for subsequent requests.
-
-**Why**: Allows you to enrich your authenticated user with business data from your primary database while keeping authentication data separate.
-
-#### Step 5: Use in Your Controllers
-
-Inject and use the typed service to access the current user:
+Instead, create your own controller with role-based access control:
 
 ```java
 @RestController
+@RequestMapping("/api/admin")
 @RequiredArgsConstructor
-public class MyController {
+public class AdminController {
 
-    private final CurrentUserService<MyUserPrincipal> currentUserService;
+    private final AuthService authService;
 
-    @GetMapping("/me")
-    public MyUserPrincipal getCurrentUser() {
-        return currentUserService.getCurrentPrincipal();
+    @PostMapping("/disable-user")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> disableUser(@RequestBody DisableUserRequest request) {
+        authService.disableUser(request.getSubject()); // username or email
+        return ResponseEntity.ok().build();
     }
 
-    @GetMapping("/my-tax-code")
-    public String getTaxCode() {
-        MyUserPrincipal user = currentUserService.getCurrentPrincipal();
-        return user.getTaxCode();
+    @PostMapping("/enable-user")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> enableUser(@RequestBody EnableUserRequest request) {
+        authService.enableUser(request.getSubject()); // username or email
+        return ResponseEntity.ok().build();
     }
 }
 ```
 
-**Why**: Provides type-safe, direct access to your custom authenticated user throughout your application.
+**Request DTOs:**
+```java
+public record DisableUserRequest(String subject) {}
+public record EnableUserRequest(String subject) {}
+```
+
+**Usage:**
+```bash
+# Disable a user
+POST /api/admin/disable-user
+{
+  "subject": "user@example.com"  // username or email
+}
+
+# Enable a user
+POST /api/admin/enable-user
+{
+  "subject": "user@example.com"  // username or email
+}
+```
+
+**Security Features:**
+- Users cannot disable themselves (throws `INVALID_OPERATION` exception)
+- Disabled accounts cannot log in or refresh tokens
+- Re-enabling is done through the `enableUser` method (no self-restriction)
 
 ### Minimal Configuration
 
@@ -811,10 +950,10 @@ blackout:
 **Defaults applied**: Blackout will automatically use the primary application database for authentication if `blackout.datasource.*` is not configured, use `/api` as base URL, enable CORS with open access.
 
 **Publicly accessible endpoints** (no authentication required):
-- `{base-url}/auth/**` - Authentication endpoints (login, refresh, status)
+- `/auth/**` - Authentication endpoints (login, refresh, status)
 - `/error` - Error page
 - `/swagger-ui/**`, `/v3/api-docs/**`, `/swagger-ui.html` - Swagger/OpenAPI documentation
-- `{base-url}/signup` - User registration (only if `blackout.signup.enabled=true`)
+- `/signup` - User registration (only if `blackout.signup.enabled=true`)
 
 ### Complete Configuration Example
 
@@ -823,6 +962,8 @@ Here's a complete `application.yml` example showing all Blackout configuration o
 ```yaml
 server:
   port: 8090 # Server port [8080]
+  servlet:
+    context-path: /api
 
 spring:
   application:
@@ -834,7 +975,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver # MySQL JDBC driver
 
 blackout:
-  base-url: /api # Base URL for all API endpoints [/api]
+  base-url:  # Base URL for all blackout API endpoints []. It is recommended to take a look at base url configuration in the docs.
 
   # !!REQUIRED!! Config to access and configure primary datasource
   parent:
@@ -872,9 +1013,9 @@ blackout:
   # Security filter chain rules
   filterchain:
     allowed: # Endpoints accessible without authentication []
-      - "/everyone/**"
+      - "/api/everyone/**"
     authenticated: # Endpoints requiring authentication []
-      - "/showidplease/**"
+      - "/api/showidplease/**"
 
   # OpenAPI/Swagger configuration
   openapi:
@@ -889,10 +1030,10 @@ blackout:
     paths-to-match: # !!REQUIRED!! Paths to include in OpenAPI documentation 
       - "/api/**"
 
-  # User registration configuration
+  # Default User registration configuration (it is recommended to implement your own registration as this will only create the AuthAccount without any link to your application entities)
   signup:
     enabled: false # Enable default user registration endpoint [false]
-    default-role: USER # Default role for new users [USER]
+    default-role: USER # Default role for new users (only in case default signup is enabled) [USER]
 ```
 
 **Important Notes**:
