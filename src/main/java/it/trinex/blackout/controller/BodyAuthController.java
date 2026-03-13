@@ -12,20 +12,29 @@ import it.trinex.blackout.dto.response.AuthResponseDTO;
 import it.trinex.blackout.dto.response.AuthStatusResponseDTO;
 import it.trinex.blackout.exception.InvalidTokenException;
 import it.trinex.blackout.service.AuthService;
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.ErrorResponse;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("${blackout.baseurl:/api}" + "/auth")
+@RequestMapping("/auth")
 @Tag(name = "Authentication", description = "Endpoints for user authentication and token management")
-public class AuthenticationController {
+public class BodyAuthController {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("porcamadonna");
+    }
 
     private final AuthService authService;
 
@@ -40,10 +49,10 @@ public class AuthenticationController {
     })
     public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
         AuthResponseDTO response = authService.login(
-                request.getSubject(),
-                request.getPassword(),
-                request.getRememberMe(),
-                request.getTotpCode()
+            request.getSubject(),
+            request.getPassword(),
+            request.getRememberMe(),
+            request.getTotpCode()
         );
 
         if (response.needOTP()) {
@@ -61,18 +70,18 @@ public class AuthenticationController {
      * @throws InvalidTokenException if refresh token is invalid or expired
      */
     @Operation(summary = "Refresh access token", description = """
-      Generates a new access token using a valid refresh token.
-
-      For security, this endpoint also rotates the refresh token,
-      returning a new refresh token that should be stored by the client.
-
-      Use this endpoint when the access token expires to obtain a new one
-      without requiring the user to log in again.
-
-      """)
+        Generates a new access token using a valid refresh token.
+        
+        For security, this endpoint also rotates the refresh token,
+        returning a new refresh token that should be stored by the client.
+        
+        Use this endpoint when the access token expires to obtain a new one
+        without requiring the user to log in again.
+        
+        """)
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Successfully refreshed tokens", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "Missing refresh_token cookie or invalid/expired refresh token", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
+        @ApiResponse(responseCode = "200", description = "Successfully refreshed tokens", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponseDTO.class))),
+        @ApiResponse(responseCode = "401", description = "Missing refresh_token cookie or invalid/expired refresh token", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponseDTO> refresh(@RequestBody @Valid RefreshRequestDTO request) {
@@ -82,13 +91,13 @@ public class AuthenticationController {
         AuthResponseDTO response = authService.refreshToken(request.getRefreshToken());
 
         return ResponseEntity.ok()
-                .body(response);
+            .body(response);
     }
 
     @Operation(summary = "Get authentication status", description = "Checks if the user is authenticated and returns user details.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "User status retrieved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthStatusResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "Not authenticated", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
+        @ApiResponse(responseCode = "200", description = "User status retrieved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthStatusResponseDTO.class))),
+        @ApiResponse(responseCode = "401", description = "Not authenticated", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/status")
     public ResponseEntity<AuthStatusResponseDTO> getAuthStatus() {

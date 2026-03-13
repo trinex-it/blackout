@@ -2,6 +2,7 @@ package it.trinex.blackout.security;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -11,6 +12,7 @@ import java.util.Map;
 
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 @SuperBuilder
 public class BlackoutUserPrincipal implements UserDetails{
 
