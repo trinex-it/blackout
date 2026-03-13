@@ -226,7 +226,7 @@ public class JwtService {
     /**
      * Extracts all claims from a JWT token.
      */
-    private Claims extractAllClaims(String token) {
+    public Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith((SecretKey) getSigningKey())
                 .build()
