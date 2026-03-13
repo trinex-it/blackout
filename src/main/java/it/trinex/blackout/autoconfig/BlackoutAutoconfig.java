@@ -4,7 +4,6 @@ import dev.samstevens.totp.code.CodeVerifier;
 import dev.samstevens.totp.qr.QrGenerator;
 import dev.samstevens.totp.recovery.RecoveryCodeGenerator;
 import dev.samstevens.totp.secret.SecretGenerator;
-import it.trinex.blackout.controller.AuthController;
 import it.trinex.blackout.controller.BodyAuthController;
 import it.trinex.blackout.controller.CookieAuthController;
 import it.trinex.blackout.controller.SignupController;
@@ -35,14 +34,14 @@ public class BlackoutAutoconfig {
     @Bean
     @ConditionalOnMissingBean(name = "authController")
     @ConditionalOnProperty(prefix = "blackout", name = "cookie", havingValue = "false")
-    public AuthController bodyAuthController(AuthService authService) {
+    public BodyAuthController bodyAuthController(AuthService authService) {
         return new BodyAuthController(authService);
     }
 
     @Bean
     @ConditionalOnMissingBean(name = "authController")
     @ConditionalOnProperty(prefix = "blackout", name = "cookie", havingValue = "true")
-    public AuthController cokieAuthController(AuthService authService) {
+    public CookieAuthController cookieAuthController(AuthService authService) {
         return new CookieAuthController(authService);
     }
 

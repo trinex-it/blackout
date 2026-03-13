@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("${blackout.baseurl:/api}" + "/2fa")
+@RequestMapping("/2fa")
 @Tag(name = "Two-Factor Authentication", description = "Endpoints for TOTP-based two-factor authentication setup and management")
 public class TOTPController {
 

@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("${blackout.baseurl:/api}" + "/signup")
+@RequestMapping("/signup")
 @RequiredArgsConstructor
 @Tag(name = "Signup", description = "Endpoints for default user registration")
 public class SignupController {
