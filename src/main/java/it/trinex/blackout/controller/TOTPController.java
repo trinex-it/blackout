@@ -19,13 +19,14 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/2fa")
+@RequestMapping(value = "/2fa", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Two-Factor Authentication", description = "Endpoints for TOTP-based two-factor authentication setup and management")
 public class TOTPController {
 

@@ -13,6 +13,7 @@ import it.trinex.blackout.dto.request.LoginRequestDTO;
 import it.trinex.blackout.dto.request.RefreshRequestDTO;
 import it.trinex.blackout.dto.response.AuthResponseDTO;
 import it.trinex.blackout.dto.response.AuthStatusResponseDTO;
+import it.trinex.blackout.exception.ExceptionResponseDTO;
 import it.trinex.blackout.exception.InvalidTokenException;
 import it.trinex.blackout.exception.UnauthorizedException;
 import it.trinex.blackout.service.AuthService;
@@ -22,17 +23,19 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.*;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.UUID;
 
 @Slf4j
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/auth")
+@RequestMapping(value = "/auth", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Authentication", description = "Endpoints for user authentication and token management")
 public class CookieAuthController {
 
@@ -54,7 +57,7 @@ public class CookieAuthController {
             content = @Content(schema = @Schema(implementation = AuthResponseDTO.class))),
         @ApiResponse(responseCode = "202", description = "Login successful, TOTP code required",
             content = @Content(schema = @Schema(implementation = AuthResponseDTO.class))),
-        @ApiResponse(responseCode = "401", description = "Invalid credentials")
+        @ApiResponse(responseCode = "401", description = "Invalid credentials", content =  @Content(schema = @Schema(implementation = ExceptionResponseDTO.class))),
     })
     public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
         AuthResponseDTO response = authService.login(
@@ -88,7 +91,7 @@ public class CookieAuthController {
                 headers.add(HttpHeaders.SET_COOKIE, accessCookie.toString());
                 headers.add(HttpHeaders.SET_COOKIE, refreshCookie.toString());
             })
-            .build();
+                .body(response);
     }
 
     /**
@@ -176,13 +179,13 @@ public class CookieAuthController {
 
     @Operation(summary = "Get authentication status", description = "Checks if the user is authenticated and returns user details.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "User status retrieved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthStatusResponseDTO.class))),
+        @ApiResponse(responseCode = "200", description = "User status retrieved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponseDTO.class))),
         @ApiResponse(responseCode = "401", description = "Not authenticated", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/status")
-    public ResponseEntity<Claims> getAuthStatus(@Parameter(hidden = true) @CookieValue(name = "access_token") String token) {
+    public ResponseEntity<String> getAuthStatus(@Parameter(hidden = true) @CookieValue(name = "access_token") String token) {
 
-        Claims claims = jwtService.extractAllClaims(token);
+        String claims = jwtService.extractAllClaims(token).toString();
 
         return ResponseEntity.ok(claims);
     }
