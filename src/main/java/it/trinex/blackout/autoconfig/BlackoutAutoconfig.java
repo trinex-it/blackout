@@ -83,15 +83,17 @@ public class BlackoutAutoconfig {
     }
 
     @Bean
+    @ConditionalOnMissingBean(name = "jwtAuthFilter")
     @ConditionalOnProperty(prefix = "blackout.cookie", name = "enabled", havingValue = "false", matchIfMissing = true)
     public HeaderJwtAuthFilter headerJwtAuthFilter(JwtService jwtService) {
         return new HeaderJwtAuthFilter(jwtService);
     }
 
     @Bean
+    @ConditionalOnMissingBean(name = "jwtAuthFilter")
     @ConditionalOnProperty(prefix = "blackout.cookie", name = "enabled", havingValue = "true")
-    public CookieJwtAuthFilter cookieJwtAuthFilter(JwtService jwtService) {
-        return new CookieJwtAuthFilter(jwtService);
+    public CookieJwtAuthFilter cookieJwtAuthFilter(JwtService jwtService, AuthService authService, CookieService cookieService) {
+        return new CookieJwtAuthFilter(jwtService, authService, cookieService, true);
     }
 
     @Bean
