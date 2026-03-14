@@ -41,8 +41,8 @@ public class BlackoutAutoconfig {
     @Bean
     @ConditionalOnMissingBean(name = "authController")
     @ConditionalOnProperty(prefix = "blackout", name = "cookie", havingValue = "true")
-    public CookieAuthController cookieAuthController(AuthService authService) {
-        return new CookieAuthController(authService);
+    public CookieAuthController cookieAuthController(AuthService authService, JwtService jwtService) {
+        return new CookieAuthController(authService, jwtService);
     }
 
     @Bean

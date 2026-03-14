@@ -1,5 +1,7 @@
 package it.trinex.blackout.controller;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -14,6 +16,7 @@ import it.trinex.blackout.dto.response.AuthStatusResponseDTO;
 import it.trinex.blackout.exception.InvalidTokenException;
 import it.trinex.blackout.exception.UnauthorizedException;
 import it.trinex.blackout.service.AuthService;
+import it.trinex.blackout.service.JwtService;
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +42,7 @@ public class CookieAuthController {
     }
 
     private final AuthService authService;
+    private final JwtService jwtService;
 
     private static final String ACCESS_COOKIE_NAME = "access_token";
     private static final String REFRESH_COOKIE_NAME = "refresh_token";
@@ -176,10 +180,10 @@ public class CookieAuthController {
         @ApiResponse(responseCode = "401", description = "Not authenticated", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/status")
-    public ResponseEntity<AuthStatusResponseDTO> getAuthStatus() {
+    public ResponseEntity<Claims> getAuthStatus(@Parameter(hidden = true) @CookieValue(name = "access_token") String token) {
 
-        AuthStatusResponseDTO response = authService.getStatus();
+        Claims claims = jwtService.extractAllClaims(token);
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(claims);
     }
 }
