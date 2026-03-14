@@ -1,5 +1,7 @@
 package it.trinex.blackout.security;
 
+import it.trinex.blackout.dto.response.AuthResponseDTO;
+import it.trinex.blackout.service.AuthService;
 import it.trinex.blackout.service.CookieService;
 import it.trinex.blackout.service.JwtService;
 import jakarta.servlet.FilterChain;
@@ -8,6 +10,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,6 +27,10 @@ import java.io.IOException;
 public class CookieJwtAuthFilter extends OncePerRequestFilter implements JwtAuthenticationFilter {
 
     private final JwtService jwtService;
+    private final AuthService authService;
+    private final CookieService cookieService;
+    @Value("${blackout.cookie.auto-refresh}")
+    private final boolean autoRefresh;
 
     @Override
     protected void doFilterInternal(
@@ -29,34 +38,55 @@ public class CookieJwtAuthFilter extends OncePerRequestFilter implements JwtAuth
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain) throws ServletException, IOException {
 
-        // Extract token from cookie only
-        String jwt = null;
+        // Extract access and refresh tokens from cookies
+        String accessToken = null;
+        String refreshToken = null;
 
         if (request.getCookies() != null) {
             for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
                 if (CookieService.ACCESS_COOKIE_NAME.equals(cookie.getName())) {
-                    jwt = cookie.getValue();
-                    break;
+                    accessToken = cookie.getValue();
+                } else if (CookieService.REFRESH_COOKIE_NAME.equals(cookie.getName())) {
+                    refreshToken = cookie.getValue();
                 }
             }
         }
 
-        if (jwt == null) {
-            log.debug("No {} cookie found for request to: {}", CookieService.ACCESS_COOKIE_NAME, request.getRequestURI());
-            filterChain.doFilter(request, response);
-            return;
+        if(autoRefresh) {
+            String newToken = null;
+
+            if (accessToken == null || !jwtService.isTokenValid(accessToken)) {
+                if (refreshToken != null && jwtService.isRefreshTokenValid(refreshToken)) {
+                    //Access token is invalid and refresh token is valid
+                    log.debug("Access token missing, attempting refresh for: {}", request.getRequestURI());
+                    AuthResponseDTO authResponse = authService.refreshToken(refreshToken);
+                    newToken = authResponse.access_token();
+                } else {
+                    //Both tokens are invalid
+                    log.debug("No {} cookie found for request to: {}", CookieService.REFRESH_COOKIE_NAME, request.getRequestURI());
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+            }
+
+            // Set new access token cookie if we performed a refresh
+            if (newToken != null) {
+                ResponseCookie accessCookie = cookieService.generateAccessCookie(newToken);
+                response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
+                accessToken = newToken;
+            }
         }
 
         try {
             // Validate token
-            if (!jwtService.isTokenValid(jwt)) {
+            if (!jwtService.isTokenValid(accessToken)) {
                 log.debug("Invalid or expired token for request to: {}", request.getRequestURI());
                 filterChain.doFilter(request, response);
                 return;
             }
 
             // Extract user principal from token
-            UserDetails userPrincipal = jwtService.extractUserPrincipal(jwt);
+            UserDetails userPrincipal = jwtService.extractUserPrincipal(accessToken);
 
             // Check if user is not already authenticated
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
