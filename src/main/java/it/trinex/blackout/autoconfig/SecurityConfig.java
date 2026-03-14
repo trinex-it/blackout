@@ -2,6 +2,7 @@ package it.trinex.blackout.autoconfig;
 
 import it.trinex.blackout.properties.*;
 import it.trinex.blackout.security.JwtAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -59,6 +60,12 @@ public class SecurityConfig {
 
                 // Disable HTTP Basic (using JWT only)
                 .httpBasic(HttpBasicConfigurer::disable)
+
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) ->
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED)
+                        )
+                )
 
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 

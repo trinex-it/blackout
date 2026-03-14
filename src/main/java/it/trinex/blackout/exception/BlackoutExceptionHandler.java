@@ -33,6 +33,15 @@ public class BlackoutExceptionHandler {
         return ResponseEntity.status(ex.getStatus()).body(response);
     }
 
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ExceptionResponseDTO> handleUnauthorizedException(UnauthorizedException ex) {
+        logBlackoutException(ex);
+
+        ExceptionResponseDTO response = new ExceptionResponseDTO(ex);
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+
     @ExceptionHandler(DuplicateKeyException.class)
     public ResponseEntity<ExceptionResponseDTO> handleDuplicateKeyException(DuplicateKeyException ex) {
         logBlackoutException(ex);

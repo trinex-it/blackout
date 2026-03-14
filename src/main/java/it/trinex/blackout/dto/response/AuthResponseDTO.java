@@ -8,5 +8,6 @@ public record AuthResponseDTO (
     String access_token,
     String refresh_token,
     Long access_token_expiration,
-    Long refresh_token_expiration
+    Long refresh_token_expiration,
+    String userJson
 ) {}

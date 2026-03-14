@@ -19,6 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
 
@@ -34,6 +35,8 @@ public class AuthService {
     private final UserDetailsService userDetailsService;
     private final TOTPService totpService;
     private final CurrentUserService currentUserService;
+
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     public AuthResponseDTO login(String subject, String password, Boolean rememberMe, String totpCode) {
         log.info("Login attempt for user: '{}' ", subject);
@@ -59,7 +62,7 @@ public class AuthService {
                     throw new InvalidTOTPCodeException("Invalid TOTP code");
                 }
             } else {
-                return new AuthResponseDTO(true, null, null, null, null);
+                return new AuthResponseDTO(true, null, null, null, null, null);
             }
         }
 
@@ -81,12 +84,15 @@ public class AuthService {
         // Determine if we should set the refresh token
         long refreshTokenMaxAge = rememberMe ? Duration.ofMillis(refreshTokenExpirationMs).toSeconds() : jwtProperties.getRefreshTokenExpNoRemember();
 
+        String userJson = objectMapper.writeValueAsString(jwtService.extractAllClaims(accessToken));
+
         return AuthResponseDTO.builder()
             .needOTP(false)
             .access_token(accessToken)
             .refresh_token(refreshToken)
             .access_token_expiration(accessTokenExpirationMs)
             .refresh_token_expiration(refreshTokenMaxAge)
+            .userJson(userJson)
             .build();
     }
 

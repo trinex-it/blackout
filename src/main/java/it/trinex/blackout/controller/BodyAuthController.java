@@ -12,10 +12,10 @@ import it.trinex.blackout.dto.response.AuthResponseDTO;
 import it.trinex.blackout.dto.response.AuthStatusResponseDTO;
 import it.trinex.blackout.exception.InvalidTokenException;
 import it.trinex.blackout.service.AuthService;
-import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,14 +27,9 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/auth")
+@RequestMapping(value = "/auth", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Authentication", description = "Endpoints for user authentication and token management")
 public class BodyAuthController {
-
-    @PostConstruct
-    public void init() {
-        System.out.println("porcamadonna");
-    }
 
     private final AuthService authService;
 
