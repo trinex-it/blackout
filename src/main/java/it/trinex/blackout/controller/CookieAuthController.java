@@ -39,11 +39,6 @@ import java.util.UUID;
 @Tag(name = "Authentication", description = "Endpoints for user authentication and token management")
 public class CookieAuthController {
 
-    @PostConstruct
-    public void init() {
-        System.out.println("porcodios");
-    }
-
     private final AuthService authService;
     private final JwtService jwtService;
 
