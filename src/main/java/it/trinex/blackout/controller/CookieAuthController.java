@@ -70,14 +70,14 @@ public class CookieAuthController {
             .httpOnly(true)
             .secure(true)
             .path("/")
-            .maxAge(response.access_token_expiration())
+            .maxAge(response.access_token_expiration() / 1000)
             .sameSite("Lax")
             .build();
         ResponseCookie refreshCookie = ResponseCookie.from(REFRESH_COOKIE_NAME, response.refresh_token())
             .httpOnly(true)
             .secure(true)
             .path("/")
-            .maxAge(response.refresh_token_expiration())
+            .maxAge(response.refresh_token_expiration() / 1000)
             .sameSite("Lax")
             .build();
 
@@ -120,7 +120,7 @@ public class CookieAuthController {
             .httpOnly(true)
             .secure(true)
             .path("/")
-            .maxAge(response.access_token_expiration())
+            .maxAge(response.access_token_expiration() / 1000)
             .sameSite("Lax")
             .build();
 
