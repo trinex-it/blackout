@@ -9,26 +9,26 @@ import it.trinex.blackout.controller.CookieAuthController;
 import it.trinex.blackout.controller.SignupController;
 import it.trinex.blackout.controller.TOTPController;
 import it.trinex.blackout.exception.BlackoutExceptionHandler;
+import it.trinex.blackout.properties.BlackoutProperties;
+import it.trinex.blackout.properties.CookieProperties;
 import it.trinex.blackout.properties.JwtProperties;
 import it.trinex.blackout.properties.TOTPProperties;
 import it.trinex.blackout.repository.AuthAccountRepo;
 import it.trinex.blackout.security.BlackoutPrincipalFactory;
 import it.trinex.blackout.security.BlackoutUserPrincipal;
 import it.trinex.blackout.security.JwtAuthenticationFilter;
-import it.trinex.blackout.service.AuthService;
-import it.trinex.blackout.service.BlackoutUserDetailService;
-import it.trinex.blackout.service.CurrentUserService;
-import it.trinex.blackout.service.JwtService;
-import it.trinex.blackout.service.TOTPService;
+import it.trinex.blackout.service.*;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @AutoConfiguration
+@EnableConfigurationProperties({CookieProperties.class})
 public class BlackoutAutoconfig {
 
     @Bean
@@ -40,9 +40,15 @@ public class BlackoutAutoconfig {
 
     @Bean
     @ConditionalOnMissingBean(name = "authController")
-    @ConditionalOnProperty(prefix = "blackout", name = "cookie", havingValue = "true")
-    public CookieAuthController cookieAuthController(AuthService authService, JwtService jwtService) {
-        return new CookieAuthController(authService, jwtService);
+    @ConditionalOnProperty(prefix = "blackout.cookie", name = "enabled", havingValue = "true")
+    public CookieAuthController cookieAuthController(AuthService authService, JwtService jwtService, CookieService cookieService) {
+        return new CookieAuthController(authService, jwtService, cookieService);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "blackout.cookie", name = "enabled", havingValue = "true")
+    public CookieService cookieService(JwtProperties jwtProperties){
+        return new CookieService(jwtProperties);
     }
 
     @Bean
@@ -75,8 +81,8 @@ public class BlackoutAutoconfig {
     }
 
     @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtService jwtService) {
-        return new JwtAuthenticationFilter(jwtService);
+    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtService jwtService, CookieProperties cookieProperties) {
+        return new JwtAuthenticationFilter(jwtService, cookieProperties);
     }
 
     @Bean

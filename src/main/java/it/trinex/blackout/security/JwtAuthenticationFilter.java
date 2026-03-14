@@ -1,6 +1,8 @@
 package it.trinex.blackout.security;
 
+import it.trinex.blackout.properties.CookieProperties;
 import it.trinex.blackout.service.JwtService;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,6 +23,7 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final CookieProperties cookieProperties;
 
     @Override
     protected void doFilterInternal(
