@@ -24,7 +24,7 @@ public class CookieService {
                 .httpOnly(true)
                 .secure(true)
                 .path("/")
-                .maxAge(token != null ? 0L : jwtProperties.getAccessTokenExp() / 1000)
+                .maxAge(token == null ? 0L : jwtProperties.getAccessTokenExp() / 1000)
                 .sameSite("Lax")
                 .build();
     }
@@ -34,7 +34,7 @@ public class CookieService {
                 .httpOnly(true)
                 .secure(true)
                 .path("/")
-                .maxAge(token != null ? 0L : jwtProperties.getRefreshTokenExp() / 1000)
+                .maxAge(token == null ? 0L : jwtProperties.getRefreshTokenExp() / 1000)
                 .sameSite("Lax")
                 .build();
     }

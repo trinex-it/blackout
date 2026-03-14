@@ -16,6 +16,8 @@ import it.trinex.blackout.properties.TOTPProperties;
 import it.trinex.blackout.repository.AuthAccountRepo;
 import it.trinex.blackout.security.BlackoutPrincipalFactory;
 import it.trinex.blackout.security.BlackoutUserPrincipal;
+import it.trinex.blackout.security.CookieJwtAuthFilter;
+import it.trinex.blackout.security.HeaderJwtAuthFilter;
 import it.trinex.blackout.security.JwtAuthenticationFilter;
 import it.trinex.blackout.service.*;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -81,8 +83,15 @@ public class BlackoutAutoconfig {
     }
 
     @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtService jwtService, CookieProperties cookieProperties) {
-        return new JwtAuthenticationFilter(jwtService, cookieProperties);
+    @ConditionalOnProperty(prefix = "blackout.cookie", name = "enabled", havingValue = "false", matchIfMissing = true)
+    public HeaderJwtAuthFilter headerJwtAuthFilter(JwtService jwtService) {
+        return new HeaderJwtAuthFilter(jwtService);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "blackout.cookie", name = "enabled", havingValue = "true")
+    public CookieJwtAuthFilter cookieJwtAuthFilter(JwtService jwtService) {
+        return new CookieJwtAuthFilter(jwtService);
     }
 
     @Bean

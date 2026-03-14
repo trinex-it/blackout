@@ -8,6 +8,7 @@ import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import it.trinex.blackout.properties.BlackoutProperties;
+import it.trinex.blackout.properties.CookieProperties;
 import it.trinex.blackout.properties.OpenApiProperties;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.models.GroupedOpenApi;
@@ -39,7 +40,7 @@ import org.springframework.context.annotation.Bean;
 public class OpenApiConfig {
 
     private final OpenApiProperties openApiProperties;
-    private final BlackoutProperties blackoutProperties;
+    private final CookieProperties cookieProperties;
 
     /**
      * Configures the main OpenAPI bean with API metadata and JWT security scheme.
@@ -80,7 +81,7 @@ public class OpenApiConfig {
         openApi.setInfo(info);
 
         // Configure JWT Bearer authentication security scheme (unless using cookie-based auth)
-        if (!blackoutProperties.isCookie()) {
+        if (!cookieProperties.isEnabled()) {
             SecurityScheme securityScheme = new SecurityScheme()
                     .type(SecurityScheme.Type.HTTP)
                     .scheme("bearer")
