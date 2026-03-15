@@ -12,11 +12,6 @@ public class CookieService {
     public static final String ACCESS_COOKIE_NAME = "access_token";
     public static final String REFRESH_COOKIE_NAME = "refresh_token";
 
-    @PostConstruct
-    public void init(){
-        System.out.println("biscotto");
-    }
-
     private final JwtProperties jwtProperties;
 
     public ResponseCookie generateAccessCookie(String token) {
