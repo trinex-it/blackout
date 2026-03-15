@@ -16,10 +16,9 @@ import it.trinex.blackout.properties.TOTPProperties;
 import it.trinex.blackout.repository.AuthAccountRepo;
 import it.trinex.blackout.security.BlackoutPrincipalFactory;
 import it.trinex.blackout.security.BlackoutUserPrincipal;
-import it.trinex.blackout.security.CookieJwtAuthFilter;
-import it.trinex.blackout.security.HeaderJwtAuthFilter;
 import it.trinex.blackout.security.JwtAuthenticationFilter;
 import it.trinex.blackout.service.*;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -37,7 +36,7 @@ public class BlackoutAutoconfig {
 
     @Bean
     @ConditionalOnMissingBean(name = "authController")
-    @ConditionalOnProperty(prefix = "blackout", name = "cookie", havingValue = "false")
+    @ConditionalOnProperty(prefix = "blackout.cookie", name = "enabled", havingValue = "false",  matchIfMissing = true)
     public BodyAuthController bodyAuthController(AuthService authService) {
         return new BodyAuthController(authService);
     }
@@ -85,17 +84,17 @@ public class BlackoutAutoconfig {
     }
 
     @Bean
-    @ConditionalOnMissingBean(name = "jwtAuthFilter")
-    @ConditionalOnProperty(prefix = "blackout.cookie", name = "enabled", havingValue = "false", matchIfMissing = true)
-    public HeaderJwtAuthFilter headerJwtAuthFilter(JwtService jwtService) {
-        return new HeaderJwtAuthFilter(jwtService);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(name = "jwtAuthFilter")
-    @ConditionalOnProperty(prefix = "blackout.cookie", name = "enabled", havingValue = "true")
-    public CookieJwtAuthFilter cookieJwtAuthFilter(JwtService jwtService, AuthService authService, CookieService cookieService) {
-        return new CookieJwtAuthFilter(jwtService, authService, cookieService, true);
+    @ConditionalOnMissingBean(JwtAuthenticationFilter.class)
+    public JwtAuthenticationFilter jwtAuthFilter(
+            JwtService jwtService,
+            ObjectProvider<AuthService> authService,
+            ObjectProvider<CookieService> cookieService,
+            CookieProperties cookieProperties) {
+        return new JwtAuthenticationFilter(
+                jwtService,
+                authService.getIfAvailable(),
+                cookieService.getIfAvailable(),
+                cookieProperties.isAutoRefresh());
     }
 
     @Bean
