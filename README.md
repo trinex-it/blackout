@@ -12,9 +12,10 @@ A Spring Boot starter that provides JWT-based authentication and authorization w
   - [Security Configuration](#security-configuration)
   - [Multi-Database Architecture](#multi-database-architecture)
   - [Custom User Principals](#custom-user-principals)
-  - [JWT Configuration](#jwt-configuration)
-  - [OpenAPI Integration](#openapi-integration)
-  - [Overrideable Beans](#overrideable-beans)
+- [JWT Configuration](#jwt-configuration)
+- [Cookie-based Authentication](#cookie-based-authentication)
+- [OpenAPI Integration](#openapi-integration)
+- [Overrideable Beans](#overrideable-beans)
   - [Auto-Configuration](#auto-configuration)
 - [Installation](#installation)
   - [Configure Maven Repository](#1-configure-maven-repository)
@@ -296,27 +297,46 @@ Disabled accounts are rejected during login attempts with an appropriate error m
 - **Token Rotation** - Automatic refresh token rotation on every refresh for enhanced security
 - **Secret Key** - Configure JWT signing key with `blackout.jwt.secret`
 
-### OpenAPI Integration
-
-- **Swagger UI** - Auto-generated API documentation available at `/swagger-ui/index.html`
-- **Configurable Metadata** - Customize title, description, version, and contact info via `blackout.openapi.*` properties
-- **Cookie-based Authentication** - Set `blackout.cookie=true` to disable JWT Bearer security scheme in Swagger UI, enabling automatic cookie-based authentication
+### Cookie-based Authentication
 
 #### Cookie-based Authentication vs JWT Bearer
 
-Blackout supports two authentication modes that can be configured via `blackout.cookie`:
+Blackout supports two authentication modes that can be configured via `blackout.cookie.enabled`:
 
-**Default Mode (`blackout.cookie: false`):**
+**Default Mode (`blackout.cookie.enabled: false`):**
 - Swagger UI displays an "Authorize" button
 - Users manually enter JWT token in the format: `Bearer <token>`
 - Token sent via `Authorization: Bearer <token>` header
 - Ideal for: API testing, mobile apps, SPAs with custom auth flows
 
-**Cookie Mode (`blackout.cookie: true`):**
+**Cookie Mode (`blackout.cookie.enabled: true`):**
 - Swagger UI has no "Authorize" button
 - Browser automatically sends `access_token` cookie with each request
 - Users authenticate via `/api/auth/login` endpoint which sets the cookie
 - Ideal for: Traditional web applications, server-rendered pages
+
+#### Cookie Auto-Refresh
+
+When Cookie Mode is enabled, you can also enable the **Auto-Refresh** functionality. This feature automatically handles token expiration by intercepting requests and performing a refresh if the access token is expired or missing.
+
+- **Backend Managed**: The library automatically extracts `access_token` and `refresh_token` from cookies.
+- **Zero Client Config**: No need for client-side axios interceptors or complex logic to handle 401 errors and token refreshing.
+- **Automatic Rotation**: New tokens are automatically set as cookies in the response after a successful refresh.
+
+To enable this feature, set `blackout.cookie.auto-refresh: true` in your configuration.
+
+```yaml
+blackout:
+  cookie:
+    enabled: true
+    auto-refresh: true
+```
+
+### OpenAPI Integration
+
+- **Swagger UI** - Auto-generated API documentation available at `/swagger-ui/index.html`
+- **Configurable Metadata** - Customize title, description, version, and contact info via `blackout.openapi.*` properties
+- **Cookie Mode Support** - Set `blackout.cookie.enabled=true` to automatically adjust Swagger UI for cookie-based authentication
 
 ### Overrideable Beans
 
@@ -448,7 +468,7 @@ Add the Blackout dependency to your `pom.xml`:
 <dependency>
     <groupId>it.trinex</groupId>
     <artifactId>blackout</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7</version>
 </dependency>
 ```
 
@@ -993,7 +1013,9 @@ spring:
 
 blackout:
   base-url:  # Base URL for all blackout API endpoints []. It is recommended to take a look at base url configuration in the docs.
-  cookie: false # Use cookie-based authentication [false]
+  cookie: 
+    enabled: false # Use cookie-based authentication [false]
+    auto-refresh: true # Enable cookie-based auto refresh of the token [false]
 
   # !!REQUIRED!! Config to access and configure primary datasource
   parent:

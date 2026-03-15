@@ -17,8 +17,8 @@ import it.trinex.blackout.exception.ExceptionResponseDTO;
 import it.trinex.blackout.exception.InvalidTokenException;
 import it.trinex.blackout.exception.UnauthorizedException;
 import it.trinex.blackout.service.AuthService;
+import it.trinex.blackout.service.CookieService;
 import it.trinex.blackout.service.JwtService;
-import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +28,6 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.*;
-import tools.jackson.databind.ObjectMapper;
 
 import java.util.UUID;
 
@@ -41,9 +40,7 @@ public class CookieAuthController {
 
     private final AuthService authService;
     private final JwtService jwtService;
-
-    private static final String ACCESS_COOKIE_NAME = "access_token";
-    private static final String REFRESH_COOKIE_NAME = "refresh_token";
+    private final CookieService cookieService;
 
     @PostMapping("/login")
     @Operation(summary = "Login user", description = "Authenticate user with email and password, returns JWT tokens")
@@ -66,20 +63,8 @@ public class CookieAuthController {
             return ResponseEntity.accepted().body(response);
         }
 
-        ResponseCookie accessCookie = ResponseCookie.from(ACCESS_COOKIE_NAME, response.access_token())
-            .httpOnly(true)
-            .secure(true)
-            .path("/")
-            .maxAge(response.access_token_expiration())
-            .sameSite("Lax")
-            .build();
-        ResponseCookie refreshCookie = ResponseCookie.from(REFRESH_COOKIE_NAME, response.refresh_token())
-            .httpOnly(true)
-            .secure(true)
-            .path("/")
-            .maxAge(response.refresh_token_expiration())
-            .sameSite("Lax")
-            .build();
+        ResponseCookie accessCookie = cookieService.generateAccessCookie(response.access_token());
+        ResponseCookie refreshCookie = cookieService.generateRefreshCookie(response.refresh_token());
 
         return ResponseEntity.ok()
             .headers(headers -> {
@@ -116,13 +101,7 @@ public class CookieAuthController {
 
         AuthResponseDTO response = authService.refreshToken(refreshToken);
 
-        ResponseCookie accessCookie = ResponseCookie.from(ACCESS_COOKIE_NAME, response.access_token())
-            .httpOnly(true)
-            .secure(true)
-            .path("/")
-            .maxAge(response.access_token_expiration())
-            .sameSite("Lax")
-            .build();
+        ResponseCookie accessCookie = cookieService.generateAccessCookie(response.access_token());
 
         return ResponseEntity.ok()
             .headers(headers -> {
@@ -149,20 +128,8 @@ public class CookieAuthController {
     })
     public ResponseEntity<Void> logout() {
 
-        ResponseCookie accessCookie = ResponseCookie.from(ACCESS_COOKIE_NAME, "")
-            .httpOnly(true)
-            .secure(true)
-            .path("/")
-            .maxAge(0L)
-            .sameSite("Lax")
-            .build();
-        ResponseCookie refreshCookie = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
-            .httpOnly(true)
-            .secure(true)
-            .path("/")
-            .maxAge(0L)
-            .sameSite("Lax")
-            .build();
+        ResponseCookie accessCookie = cookieService.generateAccessCookie(null);
+        ResponseCookie refreshCookie = cookieService.generateRefreshCookie(null);
 
         return ResponseEntity.ok()
             .headers(headers -> {
