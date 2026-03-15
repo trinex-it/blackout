@@ -120,6 +120,6 @@ public class CookieJwtAuthFilter extends OncePerRequestFilter implements JwtAuth
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return request.getRequestURI().endsWith("/auth/login");
+        return request.getRequestURI().startsWith("/api/auth");
     }
 }
