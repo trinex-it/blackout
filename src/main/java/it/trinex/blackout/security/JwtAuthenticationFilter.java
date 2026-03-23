@@ -77,9 +77,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         log.debug("Access token invalid, attempting refresh for: {}", request.getRequestURI());
                         AuthResponseDTO authResponse = authService.refreshToken(refreshToken);
                         String newAccessToken = authResponse.access_token();
+                        String newRefreshToken = authResponse.refresh_token();
                         
                         ResponseCookie accessCookie = cookieService.generateAccessCookie(newAccessToken);
+                        ResponseCookie refreshCookie = cookieService.generateRefreshCookie(newRefreshToken);
                         response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
+                        response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
                         accessToken = newAccessToken;
                     } catch (Exception e) {
                         log.debug("Token refresh failed: {}", e.getMessage());

@@ -18,6 +18,7 @@ import it.trinex.blackout.security.BlackoutPrincipalFactory;
 import it.trinex.blackout.security.BlackoutUserPrincipal;
 import it.trinex.blackout.security.JwtAuthenticationFilter;
 import it.trinex.blackout.service.*;
+import it.trinex.blackout.service.redis.RedisService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -103,13 +104,13 @@ public class BlackoutAutoconfig {
     }
 
     @Bean
-    public JwtService jwtService(JwtProperties jwtProperties, BlackoutPrincipalFactory blackoutPrincipalFactory) {
-        return new JwtService(jwtProperties, blackoutPrincipalFactory);
+    public JwtService jwtService(JwtProperties jwtProperties, BlackoutPrincipalFactory blackoutPrincipalFactory, RedisService redisService) {
+        return new JwtService(jwtProperties, blackoutPrincipalFactory, redisService);
     }
 
     @Bean
-    public AuthService authService(@Lazy AuthenticationManager authenticationManager, JwtService jWTService, AuthAccountRepo authAccountRepo, JwtProperties jwtProperties, UserDetailsService userDetailsService, @Lazy TOTPService totpService, CurrentUserService currentUserService) {
-        return new AuthService(authenticationManager, jWTService, authAccountRepo, jwtProperties, userDetailsService, totpService, currentUserService);
+    public AuthService authService(@Lazy AuthenticationManager authenticationManager, JwtService jWTService, AuthAccountRepo authAccountRepo, JwtProperties jwtProperties, UserDetailsService userDetailsService, @Lazy TOTPService totpService, CurrentUserService currentUserService, RedisService redisService) {
+        return new AuthService(authenticationManager, jWTService, authAccountRepo, jwtProperties, userDetailsService, totpService, currentUserService, redisService);
     }
 
 }
