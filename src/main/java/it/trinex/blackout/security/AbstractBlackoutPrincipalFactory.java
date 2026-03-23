@@ -24,6 +24,7 @@ public abstract class AbstractBlackoutPrincipalFactory<T extends UserDetails> im
                 .lastName(claims.get("last_name", String.class))
                 .authorities(authorities)
                 .userId(claims.get("user_id", Long.class))
+                .email(claims.getSubject())
                 .username(claims.getSubject())
                 .password(null);
 

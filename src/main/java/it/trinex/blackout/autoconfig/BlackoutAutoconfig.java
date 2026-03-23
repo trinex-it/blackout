@@ -4,10 +4,7 @@ import dev.samstevens.totp.code.CodeVerifier;
 import dev.samstevens.totp.qr.QrGenerator;
 import dev.samstevens.totp.recovery.RecoveryCodeGenerator;
 import dev.samstevens.totp.secret.SecretGenerator;
-import it.trinex.blackout.controller.BodyAuthController;
-import it.trinex.blackout.controller.CookieAuthController;
-import it.trinex.blackout.controller.SignupController;
-import it.trinex.blackout.controller.TOTPController;
+import it.trinex.blackout.controller.*;
 import it.trinex.blackout.exception.BlackoutExceptionHandler;
 import it.trinex.blackout.properties.BlackoutProperties;
 import it.trinex.blackout.properties.CookieProperties;
@@ -26,6 +23,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -47,6 +45,16 @@ public class BlackoutAutoconfig {
     @ConditionalOnProperty(prefix = "blackout.cookie", name = "enabled", havingValue = "true")
     public CookieAuthController cookieAuthController(AuthService authService, JwtService jwtService, CookieService cookieService) {
         return new CookieAuthController(authService, jwtService, cookieService);
+    }
+
+    @Bean
+    public PasswordController passwordController(PasswordService passwordService) {
+        return new PasswordController(passwordService);
+    }
+
+    @Bean
+    public PasswordService passwordService(AuthAccountRepo authAccountRepo, PasswordEncoder passwordEncoder, RedisTemplate<String, String> redisTemplate, CurrentUserService currentUserService, RedisService redisService) {
+        return new PasswordService(authAccountRepo, passwordEncoder, redisTemplate, currentUserService, redisService);
     }
 
     @Bean
