@@ -8,8 +8,9 @@ A Spring Boot starter that provides JWT-based authentication and authorization w
   - [Authentication Endpoints](#authentication-endpoints)
   - [User Registration](#user-registration)
   - [Two-Factor Authentication](#two-factor-authentication)
-  - [Account Disabling](#account-disabling)
-  - [Security Configuration](#security-configuration)
+- [Account Disabling](#account-disabling)
+- [Token Revocation with Redis](#token-revocation-with-redis)
+- [Security Configuration](#security-configuration)
   - [Multi-Database Architecture](#multi-database-architecture)
   - [Custom User Principals](#custom-user-principals)
 - [JWT Configuration](#jwt-configuration)
@@ -25,9 +26,11 @@ A Spring Boot starter that provides JWT-based authentication and authorization w
   - [Configuring a Custom Base URL](#configuring-a-custom-base-url)
   - [Defining and Using a Custom User Principal](#defining-and-using-a-custom-user-principal)
   - [Custom User Registration](#custom-user-registration)
-  - [Account Disabling](#account-disabling-1)
-  - [Minimal Configuration](#minimal-configuration)
-  - [Complete Configuration Example](#complete-configuration-example)
+- [Account Disabling](#account-disabling-1)
+- [Token Revocation with Redis](#token-revocation-with-redis-1)
+- [Minimal Configuration](#minimal-configuration)
+- [Complete Configuration Example](#complete-configuration-example)
+- [Troubleshooting](#troubleshooting)
 
 ## Features
 
@@ -272,6 +275,105 @@ Disabled accounts are rejected during login attempts with an appropriate error m
 **Note**: Implementation details are found below
 
 
+### Token Revocation with Redis
+
+Blackout provides token revocation capabilities using Redis for enhanced security control. This feature allows you to invalidate all JWT tokens for a user when necessary, such as after a password reset or role change.
+
+#### Configuration
+
+Enable token revocation by adding the following configuration to your `application.yml`:
+
+```yaml
+blackout:
+  redis:
+    enabled: true
+    host: localhost
+    port: 6379
+```
+
+**Why**: Redis provides fast, distributed token storage for revocation checks across multiple instances.
+
+#### Excluding Redis Configuration
+
+If you do not want to use the token revocation feature, you must exclude the Redis auto-configuration. Otherwise, the application will fail to start.
+
+Add the exclude annotation to your main application class:
+
+```java
+@SpringBootApplication(exclude = {DataRedisAutoConfiguration.class})
+public class BlackoutDemoApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(BlackoutDemoApplication.class, args);
+    }
+
+}
+```
+
+**Important**: This is required because Blackout includes Redis dependencies for token revocation. Without a Redis server running, the application will fail to boot if you don't exclude the auto-configuration.
+
+#### Using RedisService
+
+Blackout provides a `RedisService` with the `revokeAllUserTokens` method to programmatically revoke all tokens for a user. Since Blackout does not manage roles directly (role management is handled by your parent application), you should use this service when implementing features like:
+
+- Password reset flows
+- Role/permission changes
+- Forced logout for security reasons
+
+**Method Signature:**
+```java
+int revokeAllUserTokens(Long authAccountId)
+```
+
+**Returns**: Number of tokens that were revoked
+
+#### Implementation Example
+
+Create a controller that uses the `RedisService` to revoke tokens:
+
+```java
+@RestController
+@RequestMapping("/api/admin")
+@RequiredArgsConstructor
+public class AdminController {
+
+    private final RedisService redisService;
+
+    @PostMapping("/revoke-tokens")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Integer> revokeUserTokens(@RequestBody RevokeTokensRequest request) {
+        int revokedCount = redisService.revokeAllUserTokens(request.getAuthAccountId());
+        return ResponseEntity.ok(revokedCount);
+    }
+}
+```
+
+**Request DTO:**
+```java
+public record RevokeTokensRequest(Long authAccountId) {}
+```
+
+**Usage:**
+```bash
+POST /api/admin/revoke-tokens
+{
+  "authAccountId": 123
+}
+```
+
+**Response**: HTTP 200 OK
+```json
+5
+```
+
+**Use Cases:**
+- **Password Reset**: After a user resets their password, call `revokeAllUserTokens` to invalidate all existing tokens
+- **Role Change**: When a user's roles are updated, revoke all tokens to ensure the new permissions take effect immediately
+- **Security Event**: Revoke tokens if you detect suspicious activity or need to force logout across all devices
+
+**Note**: Revoked tokens will be rejected on subsequent authentication checks, forcing users to re-authenticate.
+
+
 ### Security Configuration
 
 - **Flexible Filter Chain** - Configure allowed and authenticated endpoints via `blackout.filterchain.allowed` and `blackout.filterchain.authenticated` properties
@@ -385,6 +487,9 @@ All beans listed below can be overridden by declaring your own `@Bean` method wi
 **JWT & User Management:**
 - `BlackoutPrincipalFactory` - Factory for reconstructing user principals from JWT claims
 - `CurrentUserService<P>` - Type-safe service for accessing the current authenticated user in controllers
+
+**Redis & Token Revocation:**
+- `redisService` - Service for revoking user tokens via Redis
 
 **Auth Database (`blackout.datasource.*`):**
 - `blackoutDataSource` - DataSource for authentication database
@@ -1040,6 +1145,12 @@ blackout:
     refresh-token-exp: 2592000000 # Refresh token expiration when "remember me" is true (30 days) [2592000000 (30 days)]
     secret: myverylongsecretthatshouldabsolutelybearandomgeneratedstring # JWT secret key (should be base64-encoded in production)
 
+  # Redis configuration for token revocation
+  redis:
+    enabled: false # Enable token revocation with Redis [false]
+    host: localhost # Redis host [localhost]
+    port: 6379 # Redis port [6379]
+
   # CORS configuration
   cors:
     allow-credentials: false # Allow credentials (cookies) in CORS requests [false]
@@ -1081,3 +1192,14 @@ blackout:
 - `blackout.datasource.*` configures the separate authentication database
 - `blackout.jwt.secret` should be a strong, randomly generated string in production (preferably base64-encoded)
 - Use specific domains instead of `"*"` for `blackout.cors.allowed-origins` in production
+
+## Troubleshooting
+
+### Application fails to start (Redis context)
+
+If your application fails to boot with errors related to Redis connection or beans, and you are **not** using the token revocation feature, ensure you have properly excluded the Redis auto-configuration in your main application class.
+
+By default, Blackout includes Redis dependencies. If Redis is not configured in your `application.yml` and not excluded from the Spring context, the application will attempt to connect to a default Redis instance and fail.
+
+**Solution**:
+Add `@SpringBootApplication(exclude = {DataRedisAutoConfiguration.class})` to your main class as shown in the [Token Revocation with Redis](#token-revocation-with-redis) section.
