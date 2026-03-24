@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebAuthn Test</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; }
+        .section { background: #f5f5f5; padding: 1.5rem; margin-bottom: 2rem; border-radius: 8px; }
+        h2 { margin-top: 0; }
+        input, button { padding: 0.5rem; margin-right: 0.5rem; margin-bottom: 0.5rem; }
+        pre { background: #333; color: #fff; padding: 1rem; border-radius: 4px; overflow-x: auto; }
+        .status { padding: 0.5rem; border-radius: 4px; display: inline-block; font-weight: bold; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Passkey (WebAuthn) Testing Playground</h1>
+    <p>Before testing, make sure you open Chrome DevTools (F12) -> ⋮ -> More Tools -> WebAuthn and check "Enable virtual authenticator environment" if you don't have a physical security key or biometrics.</p>
+
+    <div class="section">
+        <h2>1. Standard Login</h2>
+        <p>You must be authenticated via standard login to register a passkey.</p>
+        <input type="text" id="username" placeholder="Username/Email" value="user@example.com">
+        <input type="password" id="password" placeholder="Password" value="password">
+        <button onclick="login()">Login</button>
+        <p>Status: <span id="login-status">Not Logged In</span></p>
+        <div id="token-container" style="display:none">
+            <p><strong>Access Token:</strong></p>
+            <pre id="access-token" style="white-space: pre-wrap; word-wrap: break-word;"></pre>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>2. Register Passkey</h2>
+        <p>Creates a new passkey credential and links it to your logged-in account.</p>
+        <button onclick="registerPasskey()" id="btn-register">Register Passkey</button>
+        <p id="reg-status"></p>
+    </div>
+
+    <div class="section">
+        <h2>3. Login with Passkey</h2>
+        <p>Clears current tokens and attempts to log in purely using the registered passkey.</p>
+        <button onclick="logout()">Clear Tokens (Logout)</button>
+        <button onclick="loginWithPasskey()">Login with Passkey</button>
+        <p id="auth-status"></p>
+    </div>
+
+    <script>
+        let currentToken = null;
+
+        // Utility functions for Base64URL encoding/decoding required by WebAuthn
+        function bufferToBase64url(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let str = '';
+            for (const charCode of bytes) {
+                str += String.fromCharCode(charCode);
+            }
+            const base64String = btoa(str);
+            return base64String.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        }
+
+        function base64urlToBuffer(base64url) {
+            const padding = '==='.slice((base64url.length + 3) % 4);
+            const base64String = base64url.replace(/-/g, '+').replace(/_/g, '/') + padding;
+            const str = atob(base64String);
+            const buffer = new ArrayBuffer(str.length);
+            const byteView = new Uint8Array(buffer);
+            for (let i = 0; i < str.length; i++) {
+                byteView[i] = str.charCodeAt(i);
+            }
+            return buffer;
+        }
+
+        async function login() {
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        subject: document.getElementById('username').value,
+                        password: document.getElementById('password').value,
+                        rememberMe: true
+                    })
+                });
+                
+                if (!res.ok) throw new Error('Login failed');
+                
+                const data = await res.json();
+                currentToken = data.access_token;
+                
+                document.getElementById('login-status').textContent = 'Logged In';
+                document.getElementById('login-status').className = 'status success';
+                document.getElementById('token-container').style.display = 'block';
+                document.getElementById('access-token').textContent = currentToken;
+            } catch (err) {
+                document.getElementById('login-status').textContent = err.message;
+                document.getElementById('login-status').className = 'status error';
+            }
+        }
+
+        function logout() {
+            currentToken = null;
+            document.getElementById('login-status').textContent = 'Not Logged In';
+            document.getElementById('login-status').className = '';
+            document.getElementById('token-container').style.display = 'none';
+            document.getElementById('access-token').textContent = '';
+            document.getElementById('auth-status').textContent = 'Tokens cleared.';
+        }
+
+        async function registerPasskey() {
+            const statusEl = document.getElementById('reg-status');
+            if (!currentToken) {
+                statusEl.textContent = 'Please login first!';
+                statusEl.className = 'status error';
+                return;
+            }
+
+            try {
+                statusEl.textContent = 'Requesting options from server...';
+                
+                // 1. Get creation options from server
+                const optRes = await fetch('/api/webauthn/register/options', {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${currentToken}` 
+                    }
+                });
+                
+                if (!optRes.ok) throw new Error('Failed to get registration options');
+                
+                const options = await optRes.json();
+                
+                // Decode necessary fields from Base64URL
+                options.challenge = base64urlToBuffer(options.challenge);
+                options.user.id = base64urlToBuffer(options.user.id);
+                if (options.excludeCredentials) {
+                    options.excludeCredentials.forEach(c => {
+                        c.id = base64urlToBuffer(c.id);
+                    });
+                }
+
+                statusEl.textContent = 'Waiting for authenticator...';
+
+                // 2. Create credential via browser API
+                const credential = await navigator.credentials.create({ publicKey: options });
+
+                statusEl.textContent = 'Sending credential to server...';
+
+                // 3. Send credential to server for verification/storage
+                const credentialData = {
+                    type: credential.type,
+                    id: credential.id,
+                    rawId: bufferToBase64url(credential.rawId),
+                    response: {
+                        clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
+                        attestationObject: bufferToBase64url(credential.response.attestationObject)
+                    },
+                    clientExtensionResults: credential.getClientExtensionResults()
+                };
+
+                const regRes = await fetch('/api/webauthn/register', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentToken}`
+                    },
+                    body: JSON.stringify(credentialData)
+                });
+
+                if (!regRes.ok) throw new Error('Registration failed on server');
+
+                statusEl.textContent = 'Passkey Registered Successfully!';
+                statusEl.className = 'status success';
+            } catch (err) {
+                console.error(err);
+                statusEl.textContent = err.message;
+                statusEl.className = 'status error';
+            }
+        }
+
+        async function loginWithPasskey() {
+            const statusEl = document.getElementById('auth-status');
+            
+            try {
+                statusEl.textContent = 'Requesting auth options from server...';
+                
+                // 1. Get request options from server
+                const optRes = await fetch('/api/webauthn/authenticate/options', {
+                    method: 'POST'
+                });
+                
+                if (!optRes.ok) throw new Error('Failed to get authentication options');
+                
+                const options = await optRes.json();
+                
+                // Decode necessary fields from Base64URL
+                options.challenge = base64urlToBuffer(options.challenge);
+                if (options.allowCredentials) {
+                    options.allowCredentials.forEach(c => {
+                        c.id = base64urlToBuffer(c.id);
+                    });
+                }
+
+                statusEl.textContent = 'Waiting for authenticator...';
+
+                // 2. Get credential via browser API
+                const assertion = await navigator.credentials.get({ publicKey: options });
+
+                statusEl.textContent = 'Verifying with server...';
+
+                // 3. Send assertion to server
+                const assertionData = {
+                    type: assertion.type,
+                    id: assertion.id,
+                    rawId: bufferToBase64url(assertion.rawId),
+                    response: {
+                        clientDataJSON: bufferToBase64url(assertion.response.clientDataJSON),
+                        authenticatorData: bufferToBase64url(assertion.response.authenticatorData),
+                        signature: bufferToBase64url(assertion.response.signature),
+                        userHandle: assertion.response.userHandle ? bufferToBase64url(assertion.response.userHandle) : null
+                    },
+                    clientExtensionResults: assertion.getClientExtensionResults()
+                };
+
+                const authRes = await fetch('/api/login/webauthn', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(assertionData)
+                });
+
+                if (!authRes.ok) throw new Error('Authentication failed');
+
+                const data = await authRes.json();
+                
+                // Update UI with new token
+                currentToken = data.access_token;
+                document.getElementById('login-status').textContent = 'Logged In via Passkey';
+                document.getElementById('login-status').className = 'status success';
+                document.getElementById('token-container').style.display = 'block';
+                document.getElementById('access-token').textContent = currentToken;
+                
+                statusEl.textContent = 'Passkey Authentication Successful!';
+                statusEl.className = 'status success';
+            } catch (err) {
+                console.error(err);
+                statusEl.textContent = err.message;
+                statusEl.className = 'status error';
+            }
+        }
+    </script>
+</body>
+</html>
