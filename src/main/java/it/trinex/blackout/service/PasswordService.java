@@ -32,7 +32,7 @@ public class PasswordService {
     private final RedisService redisService;
 
 
-    private String generateResetOTP(String subject) {
+    public String generateResetOTP(String subject) {
         try {
             String key = PASSWORD_OTP_KEY_PREFIX + subject;
             int ttlSeconds = 300;
@@ -64,11 +64,10 @@ public class PasswordService {
     }
 
     public void resetPasswordWithOTP(ResetPasswordOTPRequest request) {
-        BlackoutUserPrincipal currentUser = currentUserService.getCurrentPrincipal();
 
-        AuthAccount authAccount = authAccountRepo.findByUsername(currentUser.getUsername()).orElse(
-                authAccountRepo.findByEmail(currentUser.getEmail()).orElseThrow(
-                        () -> new UsernameNotFoundException("Username not found: " + currentUser.getUsername())
+        AuthAccount authAccount = authAccountRepo.findByUsername(request.getSubject()).orElse(
+                authAccountRepo.findByEmail(request.getSubject()).orElseThrow(
+                        () -> new UsernameNotFoundException("Username not found: " + request.getSubject())
                 )
         );
 
