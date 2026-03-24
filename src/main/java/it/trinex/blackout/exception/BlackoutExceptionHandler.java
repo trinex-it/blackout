@@ -72,6 +72,17 @@ public class BlackoutExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(AccountNotActiveException.class)
+    public ResponseEntity<ExceptionResponseDTO> handleAccountNotActiveException(AccountNotActiveException ex) {
+        logBlackoutException(ex);
+
+        ExceptionResponseDTO response = new ExceptionResponseDTO(ex);
+        response.setCategory("UNAUTHORIZED");
+        response.setMessage("Something went wrong.");
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
     @ExceptionHandler(AuthorizationDeniedException.class)
     public ResponseEntity<ExceptionResponseDTO> handleAccessDeniedException(AuthorizationDeniedException ex) {
         BlackoutException myEx = new BlackoutException(HttpStatus.FORBIDDEN, "AUTHORIZATION", "User is not authorized to access this resource");

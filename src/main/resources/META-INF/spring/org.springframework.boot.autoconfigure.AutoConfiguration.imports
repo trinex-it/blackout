@@ -6,3 +6,6 @@ it.trinex.blackout.autoconfig.JwtConfig
 it.trinex.blackout.autoconfig.BlackoutDataSourceConfig
 it.trinex.blackout.autoconfig.OpenApiConfig
 it.trinex.blackout.autoconfig.TOTPConfig
+it.trinex.blackout.autoconfig.RedisConfiguration
+it.trinex.blackout.autoconfig.BitchAssRedisConfiguration
+it.trinex.blackout.autoconfig.JavaMailConfiguration

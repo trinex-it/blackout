@@ -7,6 +7,7 @@ import it.trinex.blackout.dto.response.AuthStatusResponseDTO;
 import it.trinex.blackout.model.AuthAccount;
 import it.trinex.blackout.security.BlackoutUserPrincipal;
 import it.trinex.blackout.properties.JwtProperties;
+import it.trinex.blackout.service.redis.RedisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
+import java.util.Date;
 
 @Service
 @Slf4j
@@ -35,6 +37,7 @@ public class AuthService {
     private final UserDetailsService userDetailsService;
     private final TOTPService totpService;
     private final CurrentUserService currentUserService;
+    private final RedisService redisService;
 
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -49,6 +52,9 @@ public class AuthService {
                             subject,
                             password));
         } catch (AuthenticationException e) {
+            if(e.getCause() instanceof AccountNotActiveException) {
+                throw (AccountNotActiveException) e.getCause();
+            }
             throw new UnauthorizedException("Invalid username or password");
         }
 
@@ -112,6 +118,7 @@ public class AuthService {
             );
         }
 
+        redisService.revokeAllUserTokens(authAccount.getId());
         authAccount.setActive(false);
         authAccountRepo.save(authAccount);
     }
@@ -141,6 +148,7 @@ public class AuthService {
 
         // Generate new access token
         String newAccessToken = jwtService.generateAccessToken(userPrincipal);
+        String newRefreshToken = jwtService.generateRefreshToken(userPrincipal);
 
         // Calculate expiration time for client
         long accessTokenExpirationMs = jwtService.calculateAccessTokenExpiration().toEpochMilli()
@@ -148,11 +156,16 @@ public class AuthService {
         long refreshTokenExpirationMs = jwtService.calculateRefreshTokenExpiration().toEpochMilli()
                 - System.currentTimeMillis();
 
+        String oldRefreshJti = jwtService.extractJti(refreshToken);
+        Date oldRefreshExp = jwtService.extractExpiration(refreshToken);
+
+        redisService.revokeRefreshToken(oldRefreshJti, oldRefreshExp);
+
         log.info("Token refreshed successfully for user: {}", userPrincipal.getUsername());
 
         return AuthResponseDTO.builder()
                 .access_token(newAccessToken)
-                .refresh_token(refreshToken)
+                .refresh_token(newRefreshToken)
                 .access_token_expiration(accessTokenExpirationMs)
                 .refresh_token_expiration(refreshTokenExpirationMs)
                 .build();

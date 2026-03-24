@@ -19,6 +19,7 @@ import it.trinex.blackout.exception.UnauthorizedException;
 import it.trinex.blackout.service.AuthService;
 import it.trinex.blackout.service.CookieService;
 import it.trinex.blackout.service.JwtService;
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +42,11 @@ public class CookieAuthController {
     private final AuthService authService;
     private final JwtService jwtService;
     private final CookieService cookieService;
+
+    @PostConstruct
+    public void init() {
+        log.info("Initialized Cookie-based Auth Controller");
+    }
 
     @PostMapping("/login")
     @Operation(summary = "Login user", description = "Authenticate user with email and password, returns JWT tokens")
@@ -102,10 +108,12 @@ public class CookieAuthController {
         AuthResponseDTO response = authService.refreshToken(refreshToken);
 
         ResponseCookie accessCookie = cookieService.generateAccessCookie(response.access_token());
+        ResponseCookie refreshCookie = cookieService.generateRefreshCookie(response.refresh_token());
 
         return ResponseEntity.ok()
             .headers(headers -> {
                 headers.add(HttpHeaders.SET_COOKIE, accessCookie.toString());
+                headers.add(HttpHeaders.SET_COOKIE, refreshCookie.toString());
             })
             .build();
 

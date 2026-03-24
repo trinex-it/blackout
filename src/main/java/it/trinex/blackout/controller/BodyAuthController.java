@@ -12,6 +12,7 @@ import it.trinex.blackout.dto.response.AuthResponseDTO;
 import it.trinex.blackout.dto.response.AuthStatusResponseDTO;
 import it.trinex.blackout.exception.InvalidTokenException;
 import it.trinex.blackout.service.AuthService;
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class BodyAuthController {
 
     private final AuthService authService;
+
+    @PostConstruct
+    public void init() {
+        log.info("Initalized Header-based Auth Controller");
+    }
 
     @PostMapping("/login")
     @Operation(summary = "Login user", description = "Authenticate user with email and password, returns JWT tokens")
