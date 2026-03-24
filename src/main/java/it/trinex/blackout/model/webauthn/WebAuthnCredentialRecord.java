@@ -18,7 +18,7 @@ import java.util.Set;
 public class WebAuthnCredentialRecord {
 
     @Id
-    @Column(columnDefinition = "BLOB", updatable = false, nullable = false)
+    @Column(columnDefinition = "VARBINARY(255)", updatable = false, nullable = false)
     private byte[] credentialId;
 
     @Column(columnDefinition = "BLOB", nullable = false)
@@ -44,6 +44,7 @@ public class WebAuthnCredentialRecord {
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "webauthn_credential_transports", joinColumns = @JoinColumn(name = "credential_id"))
+    @Enumerated(EnumType.STRING)
     @Column(name = "transport")
     private Set<AuthenticatorTransport> transports;
 

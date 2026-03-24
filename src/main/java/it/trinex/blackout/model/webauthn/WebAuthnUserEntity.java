@@ -18,7 +18,7 @@ import lombok.NoArgsConstructor;
 public class WebAuthnUserEntity {
 
     @Id
-    @Column(columnDefinition = "BLOB", updatable = false, nullable = false)
+    @Column(columnDefinition = "VARBINARY(255)", updatable = false, nullable = false)
     private byte[] id;
 
     @Column(nullable = false, unique = true)
