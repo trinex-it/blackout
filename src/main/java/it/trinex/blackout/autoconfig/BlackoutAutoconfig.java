@@ -6,10 +6,7 @@ import dev.samstevens.totp.recovery.RecoveryCodeGenerator;
 import dev.samstevens.totp.secret.SecretGenerator;
 import it.trinex.blackout.controller.*;
 import it.trinex.blackout.exception.BlackoutExceptionHandler;
-import it.trinex.blackout.properties.BlackoutProperties;
-import it.trinex.blackout.properties.CookieProperties;
-import it.trinex.blackout.properties.JwtProperties;
-import it.trinex.blackout.properties.TOTPProperties;
+import it.trinex.blackout.properties.*;
 import it.trinex.blackout.repository.AuthAccountRepo;
 import it.trinex.blackout.security.BlackoutPrincipalFactory;
 import it.trinex.blackout.security.BlackoutUserPrincipal;
@@ -24,10 +21,13 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.spring6.SpringTemplateEngine;
 
 @AutoConfiguration
 @EnableConfigurationProperties({CookieProperties.class})
@@ -53,8 +53,20 @@ public class BlackoutAutoconfig {
     }
 
     @Bean
-    public PasswordService passwordService(AuthAccountRepo authAccountRepo, PasswordEncoder passwordEncoder, RedisTemplate<String, String> redisTemplate, CurrentUserService currentUserService, RedisService redisService) {
-        return new PasswordService(authAccountRepo, passwordEncoder, redisTemplate, currentUserService, redisService);
+    @ConditionalOnProperty(prefix = "blackout.mail", name = "enabled", havingValue = "true")
+    public PasswordOtpController passwordOtpController(PasswordService passwordService) {
+        return new PasswordOtpController(passwordService);
+    }
+
+    @Bean
+    public PasswordService passwordService(AuthAccountRepo authAccountRepo, PasswordEncoder passwordEncoder, RedisTemplate<String, String> redisTemplate, CurrentUserService currentUserService, RedisService redisService, ObjectProvider<MailService> mailService) {
+        return new PasswordService(authAccountRepo, passwordEncoder, redisTemplate, currentUserService, redisService, mailService.getIfAvailable());
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "blackout.mail", name = "enabled", havingValue = "true")
+    public MailService mailService(JavaMailSender javaMailSender, SpringTemplateEngine templateEngine, MailProperties mailProperties) {
+        return new MailService(javaMailSender, templateEngine, mailProperties);
     }
 
     @Bean

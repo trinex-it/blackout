@@ -7,6 +7,7 @@ A Spring Boot starter that provides JWT-based authentication and authorization w
 - [Features](#features)
   - [Authentication Endpoints](#authentication-endpoints)
   - [User Registration](#user-registration)
+  - [Password Reset via Email](#password-reset-via-email)
   - [Two-Factor Authentication](#two-factor-authentication)
 - [Account Disabling](#account-disabling)
 - [Token Revocation with Redis](#token-revocation-with-redis)
@@ -118,6 +119,237 @@ Optional basic registration endpoint (configurable via `blackout.signup.enabled`
 **Response**: HTTP 201 Created (empty body)
 
 **Note**: After registration, use the login endpoint to obtain authentication tokens.
+
+### Password Reset via Email
+
+Blackout provides email-based password reset functionality using one-time passwords (OTP). This feature is disabled by default and must be explicitly enabled via configuration.
+
+#### Configuration
+
+Enable email-based password reset by adding the following configuration to your `application.yml`:
+
+```yaml
+blackout:
+  mail:
+    enabled: true # Enable email features [false]
+    host: smtp.example.com # SMTP server host [localhost]
+    port: 587 # SMTP server port [587]
+    username: noreply@example.com # SMTP username [null]
+    password: yourpassword # SMTP password [null]
+    protocol: smtp # Protocol to use [smtp]
+    from: noreply@example.com # Default sender email [noreply@localhost]
+    fromName: "Your App Name" # Default sender name [Blackout]
+    auth: true # SMTP authentication enabled [true]
+    starttls: true # STARTTLS enabled [true]
+    debug: false # Enable debug logging [false]
+```
+
+**Important**: The email feature is disabled by default. Set `blackout.mail.enabled: true` to activate password reset endpoints. Note it will NOT WORK if Redis is disabled - see [Token Revocation with Redis](#token-revocation-with-redis) for Redis configuration. 
+
+#### Password Reset Flow
+
+The password reset process follows this flow:
+
+1. **Request Reset** - User provides their email/username and receives a 6-digit OTP via email
+2. **Validate OTP** - Client validates the OTP before allowing password reset (optional step)
+3. **Reset Password** - User submits new password with valid OTP to complete the reset
+
+All OTP codes are stored in Redis with a 5-minute (300 seconds) expiration time.
+
+#### POST /password-otp/request-reset/{subject}
+
+Initiates the password reset process by sending a one-time password (OTP) to the user's email.
+
+**Path Parameters:**
+- `subject` - User's email or username
+
+**Response**: HTTP 200 OK (empty body)
+
+**Example:**
+```bash
+POST /password-otp/request-reset/user@example.com
+```
+
+**Response Codes:**
+- `200` - OTP sent successfully to user's email
+- `404` - User account not found
+- `500` - Failed to send email (SMTP error)
+
+**Important**: This endpoint accepts either username or email. The system will automatically find the account and send the OTP to the registered email address.
+
+#### POST /password-otp/validate-otp
+
+Validates a one-time password (OTP) for password reset without consuming it.
+
+**Request Body (`ValidateOTPRequest`)**:
+```json
+{
+  "subject": "user@example.com",
+  "otp": "123456"
+}
+```
+
+**Response**: HTTP 200 OK (empty body)
+
+**Example:**
+```bash
+POST /password-otp/validate-otp
+{
+  "subject": "user@example.com",
+  "otp": "123456"
+}
+```
+
+**Response Codes:**
+- `200` - OTP is valid
+- `400` - Invalid OTP (error code: `INVALID_RESET_OTP`)
+
+**Note**: This endpoint does NOT consume the OTP - it only validates it. Use this to pre-validate the code on the client side before submitting the new password.
+
+#### POST /password-otp/reset-with-otp
+
+Resets the user's password using a valid OTP code.
+
+**Request Body (`ResetPasswordOTPRequest`)**:
+```json
+{
+  "subject": "user@example.com",
+  "otp": "123456",
+  "newPassword": "NewSecurePassword123!",
+  "confirmNewPassword": "NewSecurePassword123!"
+}
+```
+
+**Response**: HTTP 200 OK (empty body)
+
+**Example:**
+```bash
+POST /password-otp/reset-with-otp
+{
+  "subject": "user@example.com",
+  "otp": "123456",
+  "newPassword": "NewSecurePassword123!",
+  "confirmNewPassword": "NewSecurePassword123!"
+}
+```
+
+**Response Codes:**
+- `200` - Password reset successfully
+- `400` - Invalid request due to:
+  - OTP does not match or has expired (error code: `INVALID_RESET_OTP`)
+  - New password and confirmation do not match
+  - Missing required fields (validation error)
+- `404` - User account not found
+
+**Security Considerations:**
+- The OTP must match the one stored in Redis
+- OTP expires after 5 minutes (300 seconds)
+- The new password must meet your application's password requirements
+- All existing JWT tokens for the user are automatically revoked after successful password reset
+- The OTP is consumed after a successful password reset
+
+#### POST /password/reset
+
+Resets the password for an authenticated user (without OTP). This endpoint is always available and does not require email configuration.
+
+**Request Headers:**
+- `Authorization: Bearer <access_token>` - Required authentication
+
+**Request Body (`ResetPasswordRequest`)**:
+```json
+{
+  "oldPassword": "OldPassword123!",
+  "newPassword": "NewSecurePassword123!",
+  "confirmNewPassword": "NewSecurePassword123!"
+}
+```
+
+**Response**: HTTP 200 OK (empty body)
+
+**Example:**
+```bash
+POST /password/reset
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+{
+  "oldPassword": "OldPassword123!",
+  "newPassword": "NewSecurePassword123!",
+  "confirmNewPassword": "NewSecurePassword123!"
+}
+```
+
+**Response Codes:**
+- `200` - Password reset successfully
+- `400` - Invalid request due to:
+  - Old password does not match (error code: `INVALID_PASSWORD`)
+  - New password and confirmation do not match
+  - Missing required fields (validation error)
+- `401` - User not authenticated
+- `404` - User account not found
+
+**Note**: This endpoint requires authentication and is useful for logged-in users who want to change their password. All JWT tokens are revoked after successful password reset.
+
+#### Email Template Customization
+
+To use the email-based password reset feature, you must create a Thymeleaf template in your application. Create a file named `reset-password-email.html` in your `src/main/resources/templates/` directory.
+
+**Template Location:**
+```
+your-app/
+  └── src/
+      └── main/
+          └── resources/
+              └── templates/
+                  └── reset-password-email.html
+```
+
+**Available Template Variables:**
+The template has access to two variables from the Thymeleaf context:
+- `${otp}` - The 6-digit OTP code
+- `${firstName}` - User's first name
+
+**Example Template:**
+```html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Password Reset</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { width: 80%; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        .otp { font-size: 24px; font-weight: bold; color: #007bff; letter-spacing: 2px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 th:text="'Hello ' + ${firstName} + '!'">Hello!</h2>
+        <p>We received a password reset request for your account.</p>
+        <p>Use the following OTP code to proceed:</p>
+        <p class="otp" th:text="${otp}">000000</p>
+        <p>If you didn't request this reset, you can ignore this email.</p>
+        <br>
+        <p>Thanks,<br>The App Team</p>
+    </div>
+</body>
+</html>
+```
+
+**Why Custom Template Required:**
+Blackout doesn't provide a built-in template to allow you to fully customize the email design, branding, and messaging to match your application's style.
+
+#### Integration Requirements
+
+**Redis Requirement**: The OTP-based password reset requires Redis to store temporary codes. Ensure Redis is properly configured:
+
+```yaml
+blackout:
+  redis:
+    enabled: true
+    host: localhost
+    port: 6379
+```
+
+**Why Redis**: OTP codes need fast, temporary storage with automatic expiration. Redis provides efficient key-value storage with TTL (Time-To-Live) support.
 
 ### Two-Factor Authentication
 
@@ -1185,6 +1417,20 @@ blackout:
   signup:
     enabled: false # Enable default user registration endpoint [false]
     default-role: USER # Default role for new users (only in case default signup is enabled) [USER]
+
+  # Email configuration for password reset and other email features
+  mail:
+    enabled: false # Enable email features (password reset, etc.) [false]
+    host: localhost # SMTP server host [localhost]
+    port: 587 # SMTP server port [587]
+    username: # SMTP username [null]
+    password: # SMTP password [null]
+    protocol: smtp # Protocol to use [smtp]
+    from: noreply@localhost # Default sender email [noreply@localhost]
+    fromName: Blackout # Default sender name [Blackout]
+    auth: true # SMTP authentication enabled [true]
+    starttls: true # STARTTLS enabled [true]
+    debug: false # Enable debug logging for SMTP [false]
 ```
 
 **Important Notes**:

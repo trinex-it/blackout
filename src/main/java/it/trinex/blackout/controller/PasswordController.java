@@ -6,14 +6,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import it.trinex.blackout.dto.request.ResetPasswordOTPRequest;
 import it.trinex.blackout.dto.request.ResetPasswordRequest;
-import it.trinex.blackout.dto.request.ValidateOTPRequest;
 import it.trinex.blackout.exception.ExceptionResponseDTO;
-import it.trinex.blackout.exception.InvalidResetOTPException;
 import it.trinex.blackout.service.PasswordService;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -61,26 +57,6 @@ public class PasswordController {
     })
     public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest resetPasswordRequest) {
         passwordService.resetPasswordWithoutOTP(resetPasswordRequest);
-        return ResponseEntity.ok().build();
-    }
-
-    @PostMapping("/request-reset/{subject}")
-    public ResponseEntity<String> requestResetPasswordWithOTP(@PathVariable @NotBlank(message = "Subject is required.") String subject) {
-        String OTP = passwordService.generateResetOTP(subject);
-        return ResponseEntity.ok(OTP);
-    }
-
-    @PostMapping("/validate-otp")
-    public ResponseEntity<Void> validateOTP(@RequestBody @Valid ValidateOTPRequest request) {
-        if(passwordService.checkResetOTP(request.getSubject(), request.getOtp())) {
-            return ResponseEntity.ok().build();
-        }
-        throw new InvalidResetOTPException("OTP is not valid");
-    }
-
-    @PostMapping("/reset-with-otp")
-    public ResponseEntity<Void> resetOTP(@RequestBody @Valid ResetPasswordOTPRequest request) {
-        passwordService.resetPasswordWithOTP(request);
         return ResponseEntity.ok().build();
     }
 }
