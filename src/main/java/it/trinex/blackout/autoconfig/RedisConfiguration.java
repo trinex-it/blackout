@@ -47,14 +47,6 @@ public class RedisConfiguration {
     }
 
     @Bean
-    public RedisTemplate<String, Object> redisGenericTemplate(LettuceConnectionFactory connectionFactory) {
-        RedisTemplate<String, Object> template = new RedisTemplate<>();
-
-        template.setConnectionFactory(connectionFactory);
-        return template;
-    }
-
-    @Bean
     public RedisService redisService(RedisTemplate<String, String> redisTemplate) {
         return new RealRedisService(redisTemplate);
     }
