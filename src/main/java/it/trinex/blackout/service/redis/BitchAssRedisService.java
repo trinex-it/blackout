@@ -44,6 +44,11 @@ public class BitchAssRedisService implements RedisService {
     }
 
     @Override
+    public void trackChallenge(String sessionId, String challenge) {
+
+    }
+
+    @Override
     public void removeUserToken(Long userId, String jti, String tokenType) {
         return;
     }

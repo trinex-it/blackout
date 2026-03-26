@@ -1,9 +1,11 @@
 package it.trinex.blackout.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -44,8 +46,10 @@ public class AuthAccount {
     private Instant createdAt;
     private Instant updatedAt;
     private Instant deletedAt;
-    
-    
+
+    @OneToMany(mappedBy = "authAccount", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore // Exclude lazy-loaded collection from JSON serialization
+    private List<Passkey> passkeys = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {

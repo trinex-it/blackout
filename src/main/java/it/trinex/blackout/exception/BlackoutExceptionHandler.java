@@ -51,6 +51,15 @@ public class BlackoutExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
+    @ExceptionHandler(EarlyFinishException.class)
+    public ResponseEntity<ExceptionResponseDTO> handleDuplicateKeyException(EarlyFinishException ex) {
+        logBlackoutException(ex);
+
+        ExceptionResponseDTO response = new ExceptionResponseDTO(ex);
+
+        return ResponseEntity.status(ex.getStatus()).body(response);
+    }
+
     // Intercetta gli errori di validazione (@Valid sui DTO)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {

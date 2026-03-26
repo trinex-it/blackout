@@ -1,0 +1,30 @@
+package it.trinex.blackout.autoconfig;
+
+import it.trinex.blackout.controller.webauthn.PasskeyController;
+import it.trinex.blackout.properties.WebAuthnProperties;
+import it.trinex.blackout.repository.PasskeyRepository;
+import it.trinex.blackout.security.BlackoutUserPrincipal;
+import it.trinex.blackout.service.CookieService;
+import it.trinex.blackout.service.CurrentUserService;
+import it.trinex.blackout.service.JwtService;
+import it.trinex.blackout.service.PasskeyService;
+import it.trinex.blackout.service.redis.RedisService;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import tools.jackson.databind.ObjectMapper;
+
+@AutoConfiguration
+@EnableConfigurationProperties(WebAuthnProperties.class)
+public class WebAuthnAutoconfig {
+    @Bean
+    public PasskeyService passkeyService(PasskeyRepository passkeyRepository, CurrentUserService currentUserService, WebAuthnProperties webAuthnProperties, UserDetailsService userDetailsService, JwtService jwtService, ObjectMapper objectMapper) {
+        return new PasskeyService(passkeyRepository, currentUserService, webAuthnProperties, userDetailsService, jwtService, objectMapper);
+    }
+
+    @Bean
+    public PasskeyController passkeyController(PasskeyService passkeyService, CookieService cookieService, RedisService redisService) {
+        return new PasskeyController(passkeyService, cookieService, redisService);
+    }
+}

@@ -49,6 +49,8 @@ public interface RedisService {
      */
     void trackUserToken(Long authAccountId, String jti, Date expiresAt, String tokenType);
 
+    void trackChallenge(String sessionId, String challenge);
+
     /**
      * Removes a specific token from user's tracking set.
      * Called when token is individually revoked or expires.

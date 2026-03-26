@@ -136,6 +136,11 @@ public class RealRedisService implements RedisService {
         }
     }
 
+    @Override
+    public void trackChallenge(String sessionId, String challenge) {
+        //TODO: IMPLEMENT
+    }
+
     /**
      * Removes a specific token from user's tracking set.
      * Called when token is individually revoked or expires.
