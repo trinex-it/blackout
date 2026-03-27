@@ -16,9 +16,6 @@ public class ResetPasswordOTPRequest {
 
     private String passwordRepeat;
 
-    @NotBlank(message = "Email or username is required.")
-    private String subject;
-
     @AssertTrue(message = "Passwords do not match.")
     @JsonIgnore
     public boolean isPasswordsMatching() {

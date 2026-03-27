@@ -5,8 +5,6 @@ import lombok.Getter;
 
 @Getter
 public class ValidateOTPRequest {
-    @NotBlank(message = "Subject cannot be blank.")
-    private String subject;
     @NotBlank(message = "OTP cannot be blank.")
     private String otp;
 }

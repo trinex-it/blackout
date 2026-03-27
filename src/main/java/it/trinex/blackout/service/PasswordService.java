@@ -76,13 +76,21 @@ public class PasswordService {
     }
 
     private String generateResetOTP(String subject) {
+
+        String lastOTP = redisTemplate.opsForValue().get(PASSWORD_OTP_KEY_PREFIX + subject);
+
+        // invalido otp attivo se presente
+        if (lastOTP != null && !lastOTP.isBlank()) {
+            redisTemplate.delete(PASSWORD_OTP_KEY_PREFIX + subject);
+        }
+
         try {
-            String key = PASSWORD_OTP_KEY_PREFIX + subject;
+            String completeKey = PASSWORD_OTP_KEY_PREFIX + subject;
             int ttlSeconds = 300;
             // OTP GENERATION
             String resetOTP = String.format("%06d", java.util.concurrent.ThreadLocalRandom.current().nextInt(1_000_000));
 
-            redisTemplate.opsForValue().set(key, resetOTP, Duration.ofSeconds(ttlSeconds));
+            redisTemplate.opsForValue().set(completeKey, resetOTP, Duration.ofSeconds(ttlSeconds));
             log.debug("Generated reset OTP for {} (TTL: {}s)", subject, ttlSeconds);
 
             return resetOTP;
@@ -92,9 +100,9 @@ public class PasswordService {
         }
     }
 
-    public boolean checkResetOTP(String subject, String userOTP) {
+    public boolean checkResetOTP(String resetKey, String userOTP) {
         try {
-            String key = PASSWORD_OTP_KEY_PREFIX + subject;
+            String key = PASSWORD_OTP_KEY_PREFIX + resetKey;
             String realOTP = redisTemplate.opsForValue().get(key);
             if (realOTP != null && realOTP.equals(userOTP)) {
                 return true;
@@ -106,25 +114,29 @@ public class PasswordService {
         }
     }
 
-    public void resetPasswordWithOTP(ResetPasswordOTPRequest request) {
+    private void removeResetOTP(String resetKey) {
+        redisTemplate.delete(PASSWORD_OTP_KEY_PREFIX + resetKey);
+    }
 
-        AuthAccount authAccount = authAccountRepo.findByUsername(request.getSubject()).orElse(
-                authAccountRepo.findByEmail(request.getSubject()).orElseThrow(
-                        () -> new UsernameNotFoundException("Username not found: " + request.getSubject())
+    public void resetPasswordWithOTP(ResetPasswordOTPRequest request, String subject) {
+
+        AuthAccount authAccount = authAccountRepo.findByUsername(subject).orElse(
+                authAccountRepo.findByEmail(subject).orElseThrow(
+                        () -> new UsernameNotFoundException("Username not found: " + subject)
                 )
         );
 
         String hashedPassword = passwordEncoder.encode(request.getNewPassword());
 
-        if(checkResetOTP(request.getSubject(), request.getOtp())) {
-            authAccount.setPasswordHash(hashedPassword);
-            authAccount.setPasswordless(false);
-            authAccountRepo.save(authAccount);
-            redisService.revokeAllUserTokens(authAccount.getId());
-            return;
+        if(!checkResetOTP(subject, request.getOtp())) {
+            throw new InvalidResetOTPException("Invalid Reset OTP");
         }
 
-        throw new InvalidResetOTPException("Invalid Reset OTP");
+        authAccount.setPasswordHash(hashedPassword);
+        authAccount.setPasswordless(false);
+        authAccountRepo.save(authAccount);
+        redisService.revokeAllUserTokens(authAccount.getId());
+        removeResetOTP(subject);
     }
 
     public void resetPasswordWithoutOTP(ResetPasswordRequest request) {

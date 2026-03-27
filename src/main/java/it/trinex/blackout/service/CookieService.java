@@ -33,4 +33,14 @@ public class CookieService {
                 .sameSite("Lax")
                 .build();
     }
+
+    public ResponseCookie generateGenericCookie(String cookieName, String value, Long maxAgeSeconds) {
+        return ResponseCookie.from(cookieName, value)
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(maxAgeSeconds)
+                .sameSite("Lax")
+                .build();
+    }
 }
