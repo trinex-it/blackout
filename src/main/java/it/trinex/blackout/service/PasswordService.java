@@ -3,8 +3,10 @@ package it.trinex.blackout.service;
 import it.trinex.blackout.dto.request.ResetPasswordOTPRequest;
 import it.trinex.blackout.dto.request.ResetPasswordRequest;
 import it.trinex.blackout.exception.InvalidResetOTPException;
+import it.trinex.blackout.exception.PasskeyRequiredException;
 import it.trinex.blackout.exception.PasswordMismatchException;
 import it.trinex.blackout.model.AuthAccount;
+import it.trinex.blackout.model.Passkey;
 import it.trinex.blackout.repository.AuthAccountRepo;
 import it.trinex.blackout.security.BlackoutUserPrincipal;
 import it.trinex.blackout.service.redis.RedisService;
@@ -15,10 +17,12 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.thymeleaf.context.Context;
 
 import java.io.UnsupportedEncodingException;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -55,6 +59,20 @@ public class PasswordService {
         context.setVariable("otp", otp);
         context.setVariable("firstName", authAccount.getFirstName());
         mailService.sendMail(authAccount.getEmail(), context, "Password reset");
+    }
+
+    @Transactional
+    public void enablePasswordlessLogin() {
+        AuthAccount authAccount = currentUserService.getAuthAccount();
+
+        List<Passkey> passkeys = authAccount.getPasskeys();
+
+        if (passkeys.isEmpty()) {
+            throw new PasskeyRequiredException("You need to have at least one passkey to enable passwordless login.");
+        }
+
+        authAccount.setPasswordless(true);
+        authAccountRepo.save(authAccount);
     }
 
     private String generateResetOTP(String subject) {
@@ -100,6 +118,7 @@ public class PasswordService {
 
         if(checkResetOTP(request.getSubject(), request.getOtp())) {
             authAccount.setPasswordHash(hashedPassword);
+            authAccount.setPasswordless(false);
             authAccountRepo.save(authAccount);
             redisService.revokeAllUserTokens(authAccount.getId());
             return;

@@ -77,7 +77,7 @@ public class SecurityConfig {
                     // Authentication endpoints - no authentication required
                     auth.requestMatchers(blackoutProperties.getBaseUrl() + "/auth/**").permitAll();
                     // Password reset endpoint - no authentication required
-                    auth.requestMatchers(blackoutProperties.getBaseUrl() + "/password/**").permitAll();
+                    auth.requestMatchers(blackoutProperties.getBaseUrl() + "/password-otp/**").permitAll();
                     // Swagger/OpenAPI endpoints - no authentication required (dev only)
                     auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll();
                     //2FA Recovery

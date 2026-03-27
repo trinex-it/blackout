@@ -24,15 +24,6 @@ public class BlackoutExceptionHandler {
             ex.getClass().getSimpleName(), ex.getStatus(), ex.getCategory(), ex.getDescription());
     }
 
-    @ExceptionHandler(BlackoutException.class)
-    public ResponseEntity<ExceptionResponseDTO> handleBlackoutException(BlackoutException ex) {
-        logBlackoutException(ex);
-
-        ExceptionResponseDTO response = new ExceptionResponseDTO(ex);
-
-        return ResponseEntity.status(ex.getStatus()).body(response);
-    }
-
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ExceptionResponseDTO> handleUnauthorizedException(UnauthorizedException ex) {
         logBlackoutException(ex);
@@ -51,14 +42,21 @@ public class BlackoutExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
-    @ExceptionHandler(EarlyFinishException.class)
-    public ResponseEntity<ExceptionResponseDTO> handleDuplicateKeyException(EarlyFinishException ex) {
-        logBlackoutException(ex);
-
-        ExceptionResponseDTO response = new ExceptionResponseDTO(ex);
-
-        return ResponseEntity.status(ex.getStatus()).body(response);
-    }
+//    @ExceptionHandler(EarlyFinishException.class)
+//    public ResponseEntity<ExceptionResponseDTO> handleDuplicateKeyException(EarlyFinishException ex) {
+//        logBlackoutException(ex);
+//
+//        ExceptionResponseDTO response = new ExceptionResponseDTO(ex);
+//
+//        return ResponseEntity.status(ex.getStatus()).body(response);
+//    }
+//
+//    @ExceptionHandler(PasskeyRequiredException.class)
+//    public ResponseEntity<ExceptionResponseDTO> handlePasskeyRequiredException(PasskeyRequiredException ex) {
+//        logBlackoutException(ex);
+//        ExceptionResponseDTO response = new ExceptionResponseDTO(ex);
+//        return ResponseEntity.status(ex.getStatus()).body(response);
+//    }
 
     // Intercetta gli errori di validazione (@Valid sui DTO)
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -101,6 +99,15 @@ public class BlackoutExceptionHandler {
         ExceptionResponseDTO response = new ExceptionResponseDTO(myEx);
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(BlackoutException.class)
+    public ResponseEntity<ExceptionResponseDTO> handleBlackoutException(BlackoutException ex) {
+        logBlackoutException(ex);
+
+        ExceptionResponseDTO response = new ExceptionResponseDTO(ex);
+
+        return ResponseEntity.status(ex.getStatus()).body(response);
     }
 
     @ExceptionHandler(RuntimeException.class)

@@ -1,9 +1,8 @@
 package it.trinex.blackout.autoconfig;
 
-import it.trinex.blackout.controller.webauthn.PasskeyController;
+import it.trinex.blackout.controller.PasskeyController;
 import it.trinex.blackout.properties.WebAuthnProperties;
 import it.trinex.blackout.repository.PasskeyRepository;
-import it.trinex.blackout.security.BlackoutUserPrincipal;
 import it.trinex.blackout.service.CookieService;
 import it.trinex.blackout.service.CurrentUserService;
 import it.trinex.blackout.service.JwtService;

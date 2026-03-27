@@ -35,6 +35,8 @@ public class AuthAccount {
     @Column(nullable = false)
     private boolean isActive;
 
+    private boolean isPasswordless = false;
+
     @Column(unique = true, nullable = true)
     private String totpSecret;
 
