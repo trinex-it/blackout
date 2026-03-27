@@ -1,4 +1,4 @@
-package it.trinex.blackout.controller.webauthn;
+package it.trinex.blackout.controller;
 
 
 import io.swagger.v3.oas.annotations.Parameter;
@@ -6,16 +6,12 @@ import it.trinex.blackout.dto.request.*;
 import it.trinex.blackout.dto.response.AuthResponseDTO;
 import it.trinex.blackout.dto.response.AuthenticationStartResponse;
 import it.trinex.blackout.dto.response.RegistrationStartResponse;
-import it.trinex.blackout.exception.EarlyFinishException;
 import it.trinex.blackout.service.CookieService;
 import it.trinex.blackout.service.PasskeyService;
 import it.trinex.blackout.service.redis.RedisService;
-import jakarta.servlet.http.HttpSession;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
