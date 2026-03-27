@@ -14,7 +14,7 @@ public class BitchAssRedisService implements RedisService {
 
     @PostConstruct
     public void init() {
-        log.info("Redis configuration not found. Initialized Dummy Redis Service");
+        log.info("Redis configuration not found. Initialized Bitch Ass Redis Service");
     }
 
 
