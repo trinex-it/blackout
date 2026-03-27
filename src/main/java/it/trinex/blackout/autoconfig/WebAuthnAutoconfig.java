@@ -12,6 +12,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import tools.jackson.databind.ObjectMapper;
 
@@ -20,8 +21,8 @@ import tools.jackson.databind.ObjectMapper;
 @ConditionalOnProperty(prefix = "blackout.webauthn", name = "enabled", havingValue = "true")
 public class WebAuthnAutoconfig {
     @Bean
-    public PasskeyService passkeyService(PasskeyRepository passkeyRepository, CurrentUserService currentUserService, WebAuthnProperties webAuthnProperties, UserDetailsService userDetailsService, JwtService jwtService, ObjectMapper objectMapper) {
-        return new PasskeyService(passkeyRepository, currentUserService, webAuthnProperties, userDetailsService, jwtService, objectMapper);
+    public PasskeyService passkeyService(PasskeyRepository passkeyRepository, CurrentUserService currentUserService, WebAuthnProperties webAuthnProperties, UserDetailsService userDetailsService, JwtService jwtService, ObjectMapper objectMapper, RedisTemplate<String, String> redisTemplate) {
+        return new PasskeyService(passkeyRepository, currentUserService, webAuthnProperties, redisTemplate, userDetailsService, jwtService, objectMapper);
     }
 
     @Bean

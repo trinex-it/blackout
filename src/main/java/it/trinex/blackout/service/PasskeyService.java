@@ -20,6 +20,7 @@ import it.trinex.blackout.dto.response.AuthResponseDTO;
 import it.trinex.blackout.dto.response.AuthenticationStartResponse;
 import it.trinex.blackout.dto.response.RegistrationStartResponse;
 import it.trinex.blackout.exception.EarlyFinishException;
+import it.trinex.blackout.exception.UnauthorizedException;
 import it.trinex.blackout.model.AuthAccount;
 import it.trinex.blackout.model.Passkey;
 import it.trinex.blackout.properties.WebAuthnProperties;
@@ -28,6 +29,7 @@ import it.trinex.blackout.security.BlackoutUserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +52,7 @@ public class PasskeyService {
     private final CurrentUserService<BlackoutUserPrincipal> currentUserService;
 
     private final WebAuthnProperties webAuthnProperties;
+    private final RedisTemplate<String, String> redisTemplate;
     
     // In-memory storage for challenges (in production, use Redis or database)
     private final Map<String, Challenge> challengeStore = new ConcurrentHashMap<>();
@@ -361,110 +364,160 @@ public class PasskeyService {
             throw new RuntimeException("Failed to authenticate with passkey: " + e.getMessage());
         }
     }
+
+    /**
+     * Start authentication - generate challenge
+     */
+    public AuthenticationStartResponse startReauthentication() {
+        // Generate challenge
+        byte[] challengeBytes = generateRandomBytes(32);
+        Challenge challenge = new DefaultChallenge(challengeBytes);
+        String challengeBase64 = Base64UrlUtil.encodeToString(challengeBytes);
+        // Store challenge with session-specific key
+        String key = "auth_" + UUID.randomUUID();
+
+        challengeStore.put(key, challenge);
+
+        log.info("Stored challenge with key: {}", key);
+        log.debug("Challenge store size: {}", challengeStore.size());
+
+        AuthAccount authAccount = currentUserService.getAuthAccount();
+
+        List<AuthenticationStartResponse.AllowCredential> allowedCredentials =
+                passkeyRepository.findByAuthAccount(authAccount)
+                        .stream()
+                        .map(pk -> AuthenticationStartResponse.AllowCredential.builder()
+                                .id(pk.getCredentialId())
+                                .type("public-key")
+                                .transports(pk.getTransports() != null ?
+                                        Arrays.asList(pk.getTransports().split(",")) : null)
+                                .build())
+                        .toList();
+
+        return AuthenticationStartResponse.builder()
+                .sessionId(key)
+                .challenge(challengeBase64)
+                .timeout(60000L)
+                .rpId(webAuthnProperties.getRpId())
+                .allowCredentials(allowedCredentials)
+                .userVerification("preferred")
+                .build();
+    }
+
+    /**
+     * Finish authentication - verify signature and authenticate user
+     */
+    @Transactional
+    public void finishReauthentication(AuthenticationFinishRequest request, String sessionId) {
+        try {
+
+            Challenge challenge = challengeStore.get(sessionId);
+            if (challenge == null) {
+                throw new EarlyFinishException("Passkey creation not initialized. Use /passkey/register/start");
+            }
+
+            // Find passkey by credential ID
+            String credentialId = request.getId();
+            log.info("Attempting to authenticate with credential ID: {}", credentialId);
+
+            Optional<Passkey> passkeyOpt = passkeyRepository.findByCredentialId(credentialId);
+
+            if (passkeyOpt.isEmpty()) {
+                log.error("Passkey not found for credential ID: {}", credentialId);
+                throw new IllegalArgumentException("Passkey not found");
+            }
+
+            Passkey passkey = passkeyOpt.get();
+            AuthAccount authAccount = passkey.getAuthAccount();
+            AuthAccount currentAuthAccount = currentUserService.getAuthAccount();
+
+            if(!authAccount.getId().equals(currentAuthAccount.getId())) {
+                throw new UnauthorizedException("Current user does not correspond to the passkey used.");
+            }
+
+            log.info("Found passkey for user: {}", extractSubject(authAccount));
+
+            // Decode authentication data
+            byte[] credentialIdBytes = Base64UrlUtil.decode(credentialId);
+            byte[] clientDataJSON = Base64UrlUtil.decode(request.getResponse().getClientDataJSON());
+            byte[] authenticatorData = Base64UrlUtil.decode(request.getResponse().getAuthenticatorData());
+            byte[] signature = Base64UrlUtil.decode(request.getResponse().getSignature());
+
+            // Parse and validate authentication (WebAuthn4J will handle basic verification)
+            AuthenticationRequest authRequest = new AuthenticationRequest(
+                    credentialIdBytes,
+                    authenticatorData,
+                    clientDataJSON,
+                    signature
+            );
+
+            // Parse the authentication data
+            AuthenticationData authData = webAuthnManager.parse(authRequest);
+
+            // Validate the response matches our stored credential
+            if (!Arrays.equals(authData.getCredentialId(), credentialIdBytes)) {
+                throw new IllegalArgumentException("Credential ID mismatch");
+            }
+
+            // Decode COSEKey from database
+            byte[] coseKeyBytes = Base64.getDecoder().decode(passkey.getPublicKey());
+            COSEKey coseKey = objectConverter.getCborConverter().readValue(coseKeyBytes, COSEKey.class);
+
+            // Reconstruct AttestedCredentialData
+            byte[] credentialIdBytes2 = Base64UrlUtil.decode(passkey.getCredentialId());
+            UUID tempAaguid = UUID.fromString(passkey.getAaguid());
+
+            AAGUID aaguid = new AAGUID(tempAaguid);
+
+            AttestedCredentialData credentialData = new AttestedCredentialData(
+                    aaguid,
+                    credentialIdBytes2,
+                    coseKey
+            );
+
+            // Create Authenticator
+            AuthenticatorImpl authenticator = new AuthenticatorImpl(
+                    credentialData,
+                    null,  // attestationStatement - not needed for authentication validation
+                    passkey.getSignCount()
+            );
+
+            // Create ServerProperty with the challenge
+            ServerProperty serverProperty = new ServerProperty(
+                    new Origin(webAuthnProperties.getOrigin()),
+                    webAuthnProperties.getRpId(),
+                    challenge,
+                    null
+            );
+
+            // Create authentication parameters for validation
+            AuthenticationParameters authenticationParameters = new AuthenticationParameters(
+                    serverProperty,
+                    authenticator,
+                    null,  // allowCredentials
+                    false,  // userVerificationRequired (preferred, not required)
+                    true    // userPresenceRequired
+            );
+
+            // Validate the authentication response against the challenge
+            webAuthnManager.validate(authData, authenticationParameters);
+
+            // Update passkey usage
+            passkey.setSignCount(authData.getAuthenticatorData().getSignCount());
+            passkey.setLastUsedAt(LocalDateTime.now());
+            passkeyRepository.save(passkey);
+
+            log.info("Successfully authenticated user: {}", extractSubject(authAccount));
+        } catch (Exception e) {
+            log.error("Error during passkey authentication", e);
+            throw new RuntimeException("Failed to authenticate with passkey: " + e.getMessage());
+        }
+    }
     
     public List<Passkey> getUserPasskeys(AuthAccount authAccount) {
         return passkeyRepository.findByAuthAccount(authAccount);
     }
 
-//    /**
-//     * Start reauthentication - generate challenge for existing user
-//     */
-//    public AuthenticationStartResponse startReauthentication(User user) {
-//        // Generate challenge
-//        byte[] challengeBytes = generateRandomBytes(32);
-//        Challenge challenge = new DefaultChallenge(challengeBytes);
-//        String challengeBase64 = Base64UrlUtil.encodeToString(challengeBytes);
-//
-//        // Store challenge with special key for reauthentication
-//        challengeStore.put("reauth_" + user.getUsername(), challenge);
-//
-//        // Get user's passkeys
-//        List<Passkey> passkeys = passkeyRepository.findByUserAndEnabledTrue(user);
-//        List<AuthenticationStartResponse.AllowCredential> allowCredentials = passkeys.stream()
-//                .map(pk -> AuthenticationStartResponse.AllowCredential.builder()
-//                        .type("public-key")
-//                        .id(pk.getCredentialId())
-//                        .transports(pk.getTransports() != null ?
-//                                Arrays.asList(pk.getTransports().split(",")) :
-//                                Collections.emptyList())
-//                        .build())
-//                .collect(Collectors.toList());
-//
-//        return AuthenticationStartResponse.builder()
-//                .challenge(challengeBase64)
-//                .timeout(60000L)
-//                .rpId(rpId)
-//                .allowCredentials(allowCredentials)
-//                .userVerification("required") // Require user verification for reauthentication
-//                .build();
-//    }
-//
-//    /**
-//     * Finish reauthentication - verify user's identity
-//     */
-//    @Transactional
-//    public User finishReauthentication(AuthenticationFinishRequest request, User currentUser) {
-//        try {
-//            // Find passkey by credential ID
-//            String credentialId = request.getId();
-//            Optional<Passkey> passkeyOpt = passkeyRepository.findByCredentialId(credentialId);
-//
-//            if (passkeyOpt.isEmpty()) {
-//                throw new IllegalArgumentException("Passkey not found");
-//            }
-//
-//            Passkey passkey = passkeyOpt.get();
-//            User user = passkey.getUser();
-//
-//            // Verify the passkey belongs to the current user
-//            if (!user.getId().equals(currentUser.getId())) {
-//                throw new IllegalArgumentException("Passkey does not belong to current user");
-//            }
-//
-//            // Get stored challenge
-//            Challenge challenge = challengeStore.get("reauth_" + user.getUsername());
-//            if (challenge == null) {
-//                throw new IllegalArgumentException("Challenge not found or expired");
-//            }
-//
-//            // Decode authentication data
-//            byte[] credentialIdBytes = Base64UrlUtil.decode(credentialId);
-//            byte[] clientDataJSON = Base64UrlUtil.decode(request.getResponse().getClientDataJSON());
-//            byte[] authenticatorData = Base64UrlUtil.decode(request.getResponse().getAuthenticatorData());
-//            byte[] signature = Base64UrlUtil.decode(request.getResponse().getSignature());
-//
-//            // Parse and validate authentication
-//            AuthenticationRequest authRequest = new AuthenticationRequest(
-//                    credentialIdBytes,
-//                    authenticatorData,
-//                    clientDataJSON,
-//                    signature
-//            );
-//
-//            // Parse the authentication data
-//            AuthenticationData authData = webAuthnManager.parse(authRequest);
-//
-//            // Validate the response matches our stored credential
-//            if (!Arrays.equals(authData.getCredentialId(), credentialIdBytes)) {
-//                throw new IllegalArgumentException("Credential ID mismatch");
-//            }
-//
-//            // Update passkey usage
-//            passkey.setSignCount(authData.getAuthenticatorData().getSignCount());
-//            passkey.setLastUsedAt(LocalDateTime.now());
-//            passkeyRepository.save(passkey);
-//
-//            // Clean up challenge
-//            challengeStore.remove("reauth_" + user.getUsername());
-//
-//            log.info("Successfully reauthenticated user: {}", user.getUsername());
-//            return user;
-//
-//        } catch (Exception e) {
-//            log.error("Error during reauthentication", e);
-//            throw new RuntimeException("Failed to reauthenticate: " + e.getMessage());
-//        }
-//    }
     
     private byte[] generateRandomBytes(int length) {
         byte[] bytes = new byte[length];
