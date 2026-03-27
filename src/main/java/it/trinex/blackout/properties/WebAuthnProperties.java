@@ -11,6 +11,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Data
 @ConfigurationProperties(prefix = "blackout.webauthn")
 public class WebAuthnProperties {
+
+    private boolean enabled = false;
+
     private String rpId;
 
     private String rpName;
