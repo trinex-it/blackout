@@ -32,6 +32,7 @@ public class JwtService {
     private static final String TOKEN_TYPE_CLAIM = "token_type";
     private static final String TOKEN_TYPE_ACCESS = "ACCESS";
     private static final String TOKEN_TYPE_REFRESH = "REFRESH";
+    private static final String TOKEN_TYPE_PASSKEY = "PASSKEY";
 
     private static final String AUTH_ID = "auth_id";
     private static final String CLAIM_USERID = "user_id";
@@ -66,6 +67,11 @@ public class JwtService {
         Date expiration = extractExpiration(token);
         redisService.trackUserToken(userPrincipal.getAuthId(), jti, expiration, "access");
         return token;
+    }
+
+    public String generatePasskeyToken(BlackoutUserPrincipal userPrincipal) {
+        long expirationMs = jwtProperties.getAccessTokenExp();
+        return buildToken(userPrincipal, expirationMs, TOKEN_TYPE_PASSKEY);
     }
 
     /**

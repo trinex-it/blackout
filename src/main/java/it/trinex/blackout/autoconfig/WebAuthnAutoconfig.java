@@ -21,8 +21,8 @@ import tools.jackson.databind.ObjectMapper;
 @ConditionalOnProperty(prefix = "blackout.webauthn", name = "enabled", havingValue = "true")
 public class WebAuthnAutoconfig {
     @Bean
-    public PasskeyService passkeyService(PasskeyRepository passkeyRepository, CurrentUserService currentUserService, WebAuthnProperties webAuthnProperties, UserDetailsService userDetailsService, JwtService jwtService, ObjectMapper objectMapper, RedisTemplate<String, String> redisTemplate) {
-        return new PasskeyService(passkeyRepository, currentUserService, webAuthnProperties, redisTemplate, userDetailsService, jwtService, objectMapper);
+    public PasskeyService passkeyService(PasskeyRepository passkeyRepository, CurrentUserService currentUserService, WebAuthnProperties webAuthnProperties, UserDetailsService userDetailsService, JwtService jwtService, ObjectMapper objectMapper, RedisTemplate<String, String> redisTemplate, CookieService cookieService) {
+        return new PasskeyService(passkeyRepository, currentUserService, webAuthnProperties, userDetailsService, jwtService, objectMapper, cookieService);
     }
 
     @Bean

@@ -1,9 +1,14 @@
 package it.trinex.blackout.security;
 
 import it.trinex.blackout.exception.PasskeyRequiredException;
+import it.trinex.blackout.service.JwtService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.access.expression.SecurityExpressionRoot;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionOperations;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
  * Custom security expression root for Blackout-specific method security expressions.
@@ -22,14 +27,17 @@ public class BlackoutSecurityExpressionRoot extends SecurityExpressionRoot imple
     private Object filterObject;
     private Object returnObject;
     private Object target;
+    private final JwtService jwtService;
 
     /**
      * Creates a new BlackoutSecurityExpressionRoot.
      *
      * @param authentication the current authentication object
+     * @param jwtService the JWT service for token validation
      */
-    public BlackoutSecurityExpressionRoot(Authentication authentication) {
+    public BlackoutSecurityExpressionRoot(Authentication authentication, JwtService jwtService) {
         super(authentication);
+        this.jwtService = jwtService;
     }
 
     /**
@@ -59,13 +67,36 @@ public class BlackoutSecurityExpressionRoot extends SecurityExpressionRoot imple
      * }
      * </pre>
      *
-     * @return {@code false} by default; override to implement actual passkey check
+     * @return {@code true} if passkey is present and valid, {@code false} otherwise
      */
     public boolean passkeyRequired() {
-        // TODO: Implement actual passkey validation logic
-        // This is a placeholder that always returns false
-        // Users can override the expression handler bean to provide custom logic
-        throw new PasskeyRequiredException("Passkey required");
+        // Ottieni la richiesta HTTP corrente
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes == null) {
+            return false;
+        }
+
+        HttpServletRequest request = attributes.getRequest();
+
+        // Esempio: leggere un cookie specifico (sostituisci "passkey_cookie" con il nome del tuo cookie)
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return false;
+        }
+
+        String passkeyToken = "";
+
+        for (Cookie cookie : cookies) {
+            if ("passkey".equals(cookie.getName())) {
+                passkeyToken = cookie.getValue();
+            }
+        }
+
+        if (!passkeyToken.isBlank() && jwtService.isTokenValid(passkeyToken)) {
+                return true;
+            }
+
+        throw new PasskeyRequiredException("Passkey authentication is required for this operation.");
     }
 
     public boolean bruttoCoglione() {

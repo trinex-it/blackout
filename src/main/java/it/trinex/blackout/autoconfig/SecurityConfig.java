@@ -3,6 +3,7 @@ package it.trinex.blackout.autoconfig;
 import it.trinex.blackout.properties.*;
 import it.trinex.blackout.security.BlackoutMethodSecurityExpressionHandler;
 import it.trinex.blackout.security.JwtAuthenticationFilter;
+import it.trinex.blackout.service.JwtService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
@@ -49,6 +50,7 @@ public class SecurityConfig {
     //Even if no bean is defined Spring should inject its own
     private final ObjectProvider<Customizer<AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry>> authorizeHttpRequestsCustomizer;
     private final SignupProperties signupProperties;
+    private final JwtService jwtService;
 
     /**
      * Configures the security filter chain with JWT authentication.
@@ -192,6 +194,6 @@ public class SecurityConfig {
     @Bean
     @ConditionalOnMissingBean(MethodSecurityExpressionHandler.class)
     public MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
-        return new BlackoutMethodSecurityExpressionHandler();
+        return new BlackoutMethodSecurityExpressionHandler(jwtService);
     }
 }

@@ -100,7 +100,7 @@ public class PasskeyController {
     @PostMapping("/reauthenticate/start")
     public ResponseEntity<AuthenticationStartResponse> startReauthentication() {
 
-        AuthenticationStartResponse response = passkeyService.startAuthentication();
+        AuthenticationStartResponse response = passkeyService.startReauthentication();
 
         ResponseCookie sessionCookie = ResponseCookie.from("passkey_session", response.getSessionId())
                 .httpOnly(true)
@@ -110,7 +110,7 @@ public class PasskeyController {
                 .sameSite("Lax")
                 .build();
 
-        log.info("Stored challenge in session: {}", response.getSessionId());
+        log.info("Stored reauth challenge in session: {}", response.getSessionId());
 
         return ResponseEntity.ok()
                 .headers(headers -> {
@@ -127,11 +127,14 @@ public class PasskeyController {
             @RequestBody AuthenticationFinishRequest request,
             @Parameter(hidden = true) @CookieValue(name = "passkey_session") String sessionId) {
 
-        log.info("Finishing authentication, session: {}", sessionId);
+        log.info("Finishing reauthentication, session: {}", sessionId);
 
-        passkeyService.finishAuthentication(request, sessionId);
+        ResponseCookie cookie = passkeyService.finishReauthentication(request, sessionId);
 
         return ResponseEntity.ok()
+                .headers(headers -> {
+                    headers.add(HttpHeaders.SET_COOKIE, cookie.toString());
+                })
                 .build();
     }
 

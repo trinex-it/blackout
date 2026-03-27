@@ -1,6 +1,8 @@
 package it.trinex.blackout.security;
 
+import it.trinex.blackout.service.JwtService;
 import org.aopalliance.intercept.MethodInvocation;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.security.authentication.AuthenticationTrustResolver;
@@ -52,14 +54,17 @@ public class BlackoutMethodSecurityExpressionHandler implements MethodSecurityEx
 
     private final DefaultMethodSecurityExpressionHandler delegate;
     private final AuthenticationTrustResolver trustResolver;
+    private final JwtService jwtService;
 
     /**
      * Creates a new BlackoutMethodSecurityExpressionHandler.
      * Initializes the delegate handler and supporting components.
      */
-    public BlackoutMethodSecurityExpressionHandler() {
+    @Autowired
+    public BlackoutMethodSecurityExpressionHandler(JwtService jwtService) {
         this.delegate = new DefaultMethodSecurityExpressionHandler();
         this.trustResolver = new AuthenticationTrustResolverImpl();
+        this.jwtService = jwtService;
 
         // Configure the delegate
         this.delegate.setTrustResolver(this.trustResolver);
@@ -111,7 +116,7 @@ public class BlackoutMethodSecurityExpressionHandler implements MethodSecurityEx
      * @return a new BlackoutSecurityExpressionRoot instance
      */
     protected BlackoutSecurityExpressionRoot createSecurityExpressionRoot(Authentication authentication) {
-        return new BlackoutSecurityExpressionRoot(authentication);
+        return new BlackoutSecurityExpressionRoot(authentication, jwtService);
     }
 
     @Override

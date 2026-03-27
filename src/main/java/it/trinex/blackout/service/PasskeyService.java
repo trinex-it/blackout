@@ -26,10 +26,11 @@ import it.trinex.blackout.model.Passkey;
 import it.trinex.blackout.properties.WebAuthnProperties;
 import it.trinex.blackout.repository.PasskeyRepository;
 import it.trinex.blackout.security.BlackoutUserPrincipal;
+import it.trinex.blackout.service.redis.RedisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,7 +40,6 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -52,13 +52,16 @@ public class PasskeyService {
     private final CurrentUserService<BlackoutUserPrincipal> currentUserService;
 
     private final WebAuthnProperties webAuthnProperties;
-    private final RedisTemplate<String, String> redisTemplate;
+
+    private static final String PASSKEY_REAUTH_COOKIE_NAME = "passkey_reatuh_session";
+    private static final Long PASSKEY_COOKIE_DURATION = 900L;
     
     // In-memory storage for challenges (in production, use Redis or database)
     private final Map<String, Challenge> challengeStore = new ConcurrentHashMap<>();
     private final UserDetailsService userDetailsService;
     private final JwtService jwtService;
     private final ObjectMapper objectMapper;
+    private final CookieService cookieService;
 
     private String extractSubject(AuthAccount authAccount) {
         if(authAccount.getUsername() == null || authAccount.getUsername().isEmpty()) {
@@ -408,7 +411,7 @@ public class PasskeyService {
      * Finish authentication - verify signature and authenticate user
      */
     @Transactional
-    public void finishReauthentication(AuthenticationFinishRequest request, String sessionId) {
+    public ResponseCookie finishReauthentication(AuthenticationFinishRequest request, String sessionId) {
         try {
 
             Challenge challenge = challengeStore.get(sessionId);
@@ -507,7 +510,14 @@ public class PasskeyService {
             passkey.setLastUsedAt(LocalDateTime.now());
             passkeyRepository.save(passkey);
 
-            log.info("Successfully authenticated user: {}", extractSubject(authAccount));
+            BlackoutUserPrincipal principal = currentUserService.getCurrentPrincipal();
+
+            String jwt = jwtService.generatePasskeyToken(principal);
+            String jti = jwtService.extractJti(jwt); //todo: fallo
+
+            log.info("Successfully reauthenticated user: {}", extractSubject(authAccount));
+
+            return cookieService.generateGenericCookie(PASSKEY_REAUTH_COOKIE_NAME, jwt, PASSKEY_COOKIE_DURATION);
         } catch (Exception e) {
             log.error("Error during passkey authentication", e);
             throw new RuntimeException("Failed to authenticate with passkey: " + e.getMessage());
