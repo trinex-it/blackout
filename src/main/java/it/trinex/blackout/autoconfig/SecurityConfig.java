@@ -1,6 +1,7 @@
 package it.trinex.blackout.autoconfig;
 
 import it.trinex.blackout.properties.*;
+import it.trinex.blackout.security.BlackoutMethodSecurityExpressionHandler;
 import it.trinex.blackout.security.JwtAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HttpBasicConfigurer;
@@ -176,5 +178,20 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
 
         return source;
+    }
+
+    /**
+     * Custom method security expression handler that enables Blackout-specific
+     * security expressions like {@code passkeyRequired()} in @PreAuthorize annotations.
+     *
+     * <p>This bean is conditional and can be overridden by users to provide custom
+     * expression logic.</p>
+     *
+     * @return the custom expression handler
+     */
+    @Bean
+    @ConditionalOnMissingBean(MethodSecurityExpressionHandler.class)
+    public MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
+        return new BlackoutMethodSecurityExpressionHandler();
     }
 }
