@@ -36,6 +36,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -143,10 +145,13 @@ public class PasskeyService {
             // Decode the attestation data
             byte[] clientDataJSON = Base64UrlUtil.decode(request.getResponse().getClientDataJSON());
             byte[] attestationObject = Base64UrlUtil.decode(request.getResponse().getAttestationObject());
-            
+
+            // Extract and validate origin from clientDataJSON
+            Origin origin = extractAndValidateOrigin(clientDataJSON);
+
             // Create server property
             ServerProperty serverProperty = new ServerProperty(
-                    new Origin(webAuthnProperties.getOrigin()),
+                    origin,
                     webAuthnProperties.getRpId(),
                     challenge,
                     null
@@ -266,7 +271,10 @@ public class PasskeyService {
             byte[] clientDataJSON = Base64UrlUtil.decode(request.getResponse().getClientDataJSON());
             byte[] authenticatorData = Base64UrlUtil.decode(request.getResponse().getAuthenticatorData());
             byte[] signature = Base64UrlUtil.decode(request.getResponse().getSignature());
-            
+
+            // Extract and validate origin from clientDataJSON
+            Origin origin = extractAndValidateOrigin(clientDataJSON);
+
             // Parse and validate authentication (WebAuthn4J will handle basic verification)
             AuthenticationRequest authRequest = new AuthenticationRequest(
                     credentialIdBytes,
@@ -308,7 +316,7 @@ public class PasskeyService {
 
             // Create ServerProperty with the challenge
             ServerProperty serverProperty = new ServerProperty(
-                    new Origin(webAuthnProperties.getOrigin()),
+                    origin,
                     webAuthnProperties.getRpId(),
                     challenge,
                     null
@@ -448,6 +456,9 @@ public class PasskeyService {
             byte[] authenticatorData = Base64UrlUtil.decode(request.getResponse().getAuthenticatorData());
             byte[] signature = Base64UrlUtil.decode(request.getResponse().getSignature());
 
+            // Extract and validate origin from clientDataJSON
+            Origin origin = extractAndValidateOrigin(clientDataJSON);
+
             // Parse and validate authentication (WebAuthn4J will handle basic verification)
             AuthenticationRequest authRequest = new AuthenticationRequest(
                     credentialIdBytes,
@@ -489,7 +500,7 @@ public class PasskeyService {
 
             // Create ServerProperty with the challenge
             ServerProperty serverProperty = new ServerProperty(
-                    new Origin(webAuthnProperties.getOrigin()),
+                    origin,
                     webAuthnProperties.getRpId(),
                     challenge,
                     null
@@ -530,7 +541,44 @@ public class PasskeyService {
         return passkeyRepository.findByAuthAccount(authAccount);
     }
 
-    
+    /**
+     * Extracts and validates the origin from clientDataJSON.
+     * The origin must be one of the allowed origins configured in webAuthnProperties.origins
+     *
+     * @param clientDataJSON The clientDataJSON bytes from WebAuthn response
+     * @return The validated Origin object
+     * @throws IOException if clientDataJSON cannot be parsed
+     * @throws SecurityException if the origin is not in the allowed list
+     */
+    private Origin extractAndValidateOrigin(byte[] clientDataJSON) throws IOException {
+        // Parse clientDataJSON to extract origin
+        Map<String, Object> clientData = objectMapper.readValue(
+                new String(clientDataJSON, StandardCharsets.UTF_8),
+                Map.class
+        );
+
+        String origin = (String) clientData.get("origin");
+
+        if (origin == null) {
+            throw new IllegalArgumentException("Origin not found in clientDataJSON");
+        }
+
+        // Check if allowed origins list is configured
+        if (webAuthnProperties.getOrigins() == null || webAuthnProperties.getOrigins().isEmpty()) {
+            throw new IllegalStateException("No allowed origins configured in blackout.webauthn.origins");
+        }
+
+        // Validate against allowed origins
+        if (!webAuthnProperties.getOrigins().contains(origin)) {
+            log.error("Origin '{}' is not allowed. Allowed origins: {}", origin, webAuthnProperties.getOrigins());
+            throw new SecurityException("Origin '" + origin + "' is not allowed");
+        }
+
+        log.debug("Origin '{}' validated successfully", origin);
+        return new Origin(origin);
+    }
+
+
     private byte[] generateRandomBytes(int length) {
         byte[] bytes = new byte[length];
         new Random().nextBytes(bytes);
