@@ -353,6 +353,8 @@ public class PasskeyService {
 
             String userJson = objectMapper.writeValueAsString(jwtService.extractAllClaims(accessToken));
 
+            challengeStore.remove(sessionId);
+
             return AuthResponseDTO.builder()
                     .needOTP(false)
                     .access_token(accessToken)

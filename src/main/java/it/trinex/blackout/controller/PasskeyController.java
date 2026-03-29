@@ -65,8 +65,6 @@ public class PasskeyController {
                     .sameSite("Lax")
                     .build();
 
-        log.info("Stored challenge in session: {}", response.getSessionId());
-
         return ResponseEntity.ok()
                 .headers(headers -> {
                     headers.add(HttpHeaders.SET_COOKIE, sessionCookie.toString());
