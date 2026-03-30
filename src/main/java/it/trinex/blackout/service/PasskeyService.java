@@ -23,6 +23,7 @@ import it.trinex.blackout.dto.response.ReauthenticationFinishResponse;
 import it.trinex.blackout.dto.response.RegistrationStartResponse;
 import it.trinex.blackout.exception.EarlyFinishException;
 import it.trinex.blackout.exception.PasswordMismatchException;
+import it.trinex.blackout.exception.PasswordlessEnabledException;
 import it.trinex.blackout.exception.UnauthorizedException;
 import it.trinex.blackout.model.AuthAccount;
 import it.trinex.blackout.model.Passkey;
@@ -546,6 +547,11 @@ public class PasskeyService {
     public ReauthenticationFinishResponse passwordReauthentication(PasswordReauthenticationRequest request) {
 
         AuthAccount authAccount = currentUserService.getAuthAccount();
+
+        if(authAccount.isPasswordless()) {
+            throw new PasswordlessEnabledException("User is passwordless, cannot reauthenticate with password");
+        }
+
         BlackoutUserPrincipal principal = currentUserService.getCurrentPrincipal();
 
         if(!passwordEncoder.matches(request.getPassword(),  authAccount.getPasswordHash())) {
