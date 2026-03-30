@@ -138,11 +138,13 @@ public class CookieAuthController {
 
         ResponseCookie accessCookie = cookieService.generateAccessCookie(null);
         ResponseCookie refreshCookie = cookieService.generateRefreshCookie(null);
+        ResponseCookie reauthCookie = cookieService.generateGenericCookie("reauth_token", null, 0L);
 
         return ResponseEntity.ok()
             .headers(headers -> {
                 headers.add(HttpHeaders.SET_COOKIE, accessCookie.toString());
                 headers.add(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+                headers.add(HttpHeaders.SET_COOKIE, reauthCookie.toString());
             })
             .build();
     }

@@ -24,6 +24,7 @@ public class BlackoutUserPrincipal implements UserDetails{
     String firstName;
     String lastName;
     boolean passkeyEnabled;
+    boolean passwordlessEnabled;
     private Collection<? extends GrantedAuthority> authorities;
 
     @Override

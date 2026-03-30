@@ -23,6 +23,7 @@ public abstract class AbstractBlackoutPrincipalFactory<T extends UserDetails> im
                 .firstName(claims.get("first_name", String.class))
                 .lastName(claims.get("last_name", String.class))
                 .passkeyEnabled(claims.get("passkey_enabled", Boolean.class))
+                .passwordlessEnabled(claims.get("passwordless_enabled", Boolean.class))
                 .authorities(authorities)
                 .userId(claims.get("user_id", Long.class))
                 .email(claims.getSubject())

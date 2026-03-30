@@ -29,10 +29,10 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class JwtService {
 
-    private static final String TOKEN_TYPE_CLAIM = "token_type";
-    private static final String TOKEN_TYPE_ACCESS = "ACCESS";
-    private static final String TOKEN_TYPE_REFRESH = "REFRESH";
-    private static final String TOKEN_TYPE_PASSKEY = "PASSKEY";
+    public static final String TOKEN_TYPE_CLAIM = "token_type";
+    public static final String TOKEN_TYPE_ACCESS = "ACCESS";
+    public static final String TOKEN_TYPE_REFRESH = "REFRESH";
+    public static final String TOKEN_TYPE_PASSKEY = "PASSKEY";
 
     private static final String AUTH_ID = "auth_id";
     private static final String CLAIM_USERID = "user_id";
@@ -40,6 +40,7 @@ public class JwtService {
     private static final String CLAIM_FIRSTNAME = "first_name";
     private static final String CLAIM_LASTNAME = "last_name";
     private static final String CLAIM_PASSKEY_ENABLED = "passkey_enabled";
+    private static final String CLAIM_PASSWORD_LESS_ENABLED = "passwordless_enabled";
 
 
     private final JwtProperties jwtProperties;
@@ -111,6 +112,7 @@ public class JwtService {
                 .claim(CLAIM_FIRSTNAME, userPrincipal.getFirstName())
                 .claim(CLAIM_LASTNAME, userPrincipal.getLastName())
                 .claim(CLAIM_PASSKEY_ENABLED, userPrincipal.isPasskeyEnabled())
+                .claim(CLAIM_PASSWORD_LESS_ENABLED, userPrincipal.isPasswordlessEnabled())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256);
@@ -131,7 +133,7 @@ public class JwtService {
      * @param token the JWT token to validate
      * @return true if token is valid, false otherwise
      */
-    public boolean isTokenValid(String token) {
+    public boolean isTokenValid(String token, String requiredTokenType) {
         try {
             Claims claims = extractAllClaims(token);
             String tokenType = claims.get(TOKEN_TYPE_CLAIM, String.class);
@@ -139,7 +141,7 @@ public class JwtService {
                 log.debug("Access token {} is revoked", extractJti(token));
                 return false;
             }
-            return TOKEN_TYPE_ACCESS.equals(tokenType) && !isTokenExpired(claims);
+            return requiredTokenType.equals(tokenType) && !isTokenExpired(claims);
         } catch (ExpiredJwtException e) {
             log.debug("Token expired: {}", e.getMessage());
             return false;
