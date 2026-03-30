@@ -3,6 +3,7 @@ package it.trinex.blackout.security;
 import it.trinex.blackout.exception.PasskeyRequiredException;
 import it.trinex.blackout.repository.PasskeyRepository;
 import it.trinex.blackout.service.JwtService;
+import it.trinex.blackout.service.enums.TokenType;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.access.expression.SecurityExpressionRoot;
@@ -70,7 +71,7 @@ public class BlackoutSecurityExpressionRoot extends SecurityExpressionRoot imple
             passkeyToken = request.getHeader(REAUTH_HEADER_NAME);
         }
 
-        if (passkeyToken != null && !passkeyToken.isBlank() && jwtService.isTokenValid(passkeyToken, JwtService.TOKEN_TYPE_PASSKEY)) {
+        if (passkeyToken != null && !passkeyToken.isBlank() && jwtService.isTokenValid(passkeyToken, TokenType.PASSKEY.name())) {
             return true;
         }
 

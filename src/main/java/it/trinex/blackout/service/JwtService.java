@@ -7,6 +7,7 @@ import io.jsonwebtoken.security.SignatureException;
 import it.trinex.blackout.security.BlackoutPrincipalFactory;
 import it.trinex.blackout.security.BlackoutUserPrincipal;
 import it.trinex.blackout.properties.JwtProperties;
+import it.trinex.blackout.service.enums.TokenType;
 import it.trinex.blackout.service.redis.RedisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,10 +31,6 @@ import java.util.stream.Stream;
 public class JwtService {
 
     public static final String TOKEN_TYPE_CLAIM = "token_type";
-    public static final String TOKEN_TYPE_ACCESS = "ACCESS";
-    public static final String TOKEN_TYPE_REFRESH = "REFRESH";
-    public static final String TOKEN_TYPE_PASSKEY = "PASSKEY";
-
     private static final String AUTH_ID = "auth_id";
     private static final String CLAIM_USERID = "user_id";
     private static final String CLAIM_ROLE = "roles";
@@ -63,7 +60,7 @@ public class JwtService {
      */
     public String generateAccessToken(BlackoutUserPrincipal userPrincipal) {
         long expirationMs = jwtProperties.getAccessTokenExp();
-        String token = buildToken(userPrincipal, expirationMs, TOKEN_TYPE_ACCESS);
+        String token = buildToken(userPrincipal, expirationMs, TokenType.ACCESS.name());
         // redis tracking
         String jti = extractJti(token);
         Date expiration = extractExpiration(token);
@@ -73,7 +70,7 @@ public class JwtService {
 
     public String generatePasskeyToken(BlackoutUserPrincipal userPrincipal) {
         long expirationMs = jwtProperties.getAccessTokenExp();
-        return buildToken(userPrincipal, expirationMs, TOKEN_TYPE_PASSKEY);
+        return buildToken(userPrincipal, expirationMs, TokenType.PASSKEY.name());
     }
 
     /**
@@ -87,7 +84,7 @@ public class JwtService {
      */
     public String generateRefreshToken(BlackoutUserPrincipal userPrincipal) {
         long expirationMs = jwtProperties.getRefreshTokenExp();
-        String token = buildToken(userPrincipal, expirationMs, TOKEN_TYPE_REFRESH);
+        String token = buildToken(userPrincipal, expirationMs, TokenType.REFRESH.name());
         // redis tracking
         String jti = extractJti(token);
         Date expiration = extractExpiration(token);
@@ -166,7 +163,7 @@ public class JwtService {
                 log.debug("Refresh token {} is revoked", extractJti(token));
                 return false;
             }
-            return TOKEN_TYPE_REFRESH.equals(tokenType) && !isTokenExpired(claims);
+            return TokenType.ACCESS.name().equals(tokenType) && !isTokenExpired(claims);
         } catch (ExpiredJwtException e) {
             log.debug("Refresh token expired: {}", e.getMessage());
             return false;
