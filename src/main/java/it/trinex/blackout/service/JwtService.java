@@ -39,6 +39,7 @@ public class JwtService {
     private static final String CLAIM_ROLE = "roles";
     private static final String CLAIM_FIRSTNAME = "first_name";
     private static final String CLAIM_LASTNAME = "last_name";
+    private static final String CLAIM_PASSKEY_ENABLED = "passkey_enabled";
 
 
     private final JwtProperties jwtProperties;
@@ -109,6 +110,7 @@ public class JwtService {
                 .claim(CLAIM_ROLE, extractRoleFromAuthorities(userPrincipal.getAuthorities()))
                 .claim(CLAIM_FIRSTNAME, userPrincipal.getFirstName())
                 .claim(CLAIM_LASTNAME, userPrincipal.getLastName())
+                .claim(CLAIM_PASSKEY_ENABLED, userPrincipal.isPasskeyEnabled())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256);

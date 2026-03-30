@@ -21,10 +21,7 @@ public class WebAuthnProperties {
 
     private String rpName;
 
-    /**
-     * Allowed origins for WebAuthn operations.
-     * The origin from clientDataJSON must match one of these.
-     * Example: ["https://myapp.com", "https://myapp.it", "http://localhost:3000"]
-     */
     private List<String> origins = new ArrayList<>();
+
+    private Long reauthenticationTimeout = 900L;
 }

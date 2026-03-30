@@ -15,11 +15,14 @@ import com.webauthn4j.data.client.challenge.DefaultChallenge;
 import com.webauthn4j.server.ServerProperty;
 import com.webauthn4j.util.Base64UrlUtil;
 import it.trinex.blackout.dto.request.AuthenticationFinishRequest;
+import it.trinex.blackout.dto.request.PasswordReauthenticationRequest;
 import it.trinex.blackout.dto.request.RegistrationFinishRequest;
 import it.trinex.blackout.dto.response.AuthResponseDTO;
 import it.trinex.blackout.dto.response.AuthenticationStartResponse;
+import it.trinex.blackout.dto.response.ReauthenticationFinishResponse;
 import it.trinex.blackout.dto.response.RegistrationStartResponse;
 import it.trinex.blackout.exception.EarlyFinishException;
+import it.trinex.blackout.exception.PasswordMismatchException;
 import it.trinex.blackout.exception.UnauthorizedException;
 import it.trinex.blackout.model.AuthAccount;
 import it.trinex.blackout.model.Passkey;
@@ -32,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
@@ -55,15 +59,15 @@ public class PasskeyService {
 
     private final WebAuthnProperties webAuthnProperties;
 
-    private static final String PASSKEY_REAUTH_COOKIE_NAME = "passkey_reatuh_session";
-    private static final Long PASSKEY_COOKIE_DURATION = 900L;
-    
+    private static final String PASSKEY_REAUTH_COOKIE_NAME = "reauth_token";
+
     // In-memory storage for challenges (in production, use Redis or database)
     private final Map<String, Challenge> challengeStore = new ConcurrentHashMap<>();
     private final UserDetailsService userDetailsService;
     private final JwtService jwtService;
     private final ObjectMapper objectMapper;
     private final CookieService cookieService;
+    private final PasswordEncoder passwordEncoder;
 
     private String extractSubject(AuthAccount authAccount) {
         if(authAccount.getUsername() == null || authAccount.getUsername().isEmpty()) {
@@ -421,7 +425,7 @@ public class PasskeyService {
      * Finish authentication - verify signature and authenticate user
      */
     @Transactional
-    public ResponseCookie finishReauthentication(AuthenticationFinishRequest request, String sessionId) {
+    public ReauthenticationFinishResponse finishReauthentication(AuthenticationFinishRequest request, String sessionId) {
         try {
 
             Challenge challenge = challengeStore.get(sessionId);
@@ -526,15 +530,36 @@ public class PasskeyService {
             BlackoutUserPrincipal principal = currentUserService.getCurrentPrincipal();
 
             String jwt = jwtService.generatePasskeyToken(principal);
-            String jti = jwtService.extractJti(jwt); //todo: fallo
 
             log.info("Successfully reauthenticated user: {}", extractSubject(authAccount));
 
-            return cookieService.generateGenericCookie(PASSKEY_REAUTH_COOKIE_NAME, jwt, PASSKEY_COOKIE_DURATION);
+            return ReauthenticationFinishResponse.builder()
+                    .reauthToken(jwt)
+                    .tokenCookie(cookieService.generateGenericCookie(PASSKEY_REAUTH_COOKIE_NAME, jwt, webAuthnProperties.getReauthenticationTimeout()))
+                    .build();
         } catch (Exception e) {
             log.error("Error during passkey authentication", e);
             throw new RuntimeException("Failed to authenticate with passkey: " + e.getMessage());
         }
+    }
+
+    public ReauthenticationFinishResponse passwordReauthentication(PasswordReauthenticationRequest request) {
+
+        AuthAccount authAccount = currentUserService.getAuthAccount();
+        BlackoutUserPrincipal principal = currentUserService.getCurrentPrincipal();
+
+        if(!passwordEncoder.matches(request.getPassword(),  authAccount.getPasswordHash())) {
+            throw new PasswordMismatchException("Password is not valid");
+        }
+
+        String jwt = jwtService.generatePasskeyToken(principal);
+
+        log.info("Successfully reauthenticated user: {}", extractSubject(authAccount));
+
+        return ReauthenticationFinishResponse.builder()
+                .reauthToken(jwt)
+                .tokenCookie(cookieService.generateGenericCookie(PASSKEY_REAUTH_COOKIE_NAME, jwt, webAuthnProperties.getReauthenticationTimeout()))
+                .build();
     }
     
     public List<Passkey> getUserPasskeys(AuthAccount authAccount) {

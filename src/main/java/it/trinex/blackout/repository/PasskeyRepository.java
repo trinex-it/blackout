@@ -14,6 +14,8 @@ public interface PasskeyRepository extends JpaRepository<Passkey, Long> {
     
     List<Passkey> findByAuthAccount(AuthAccount authAccount);
 
+    boolean existsByAuthAccount(AuthAccount authAccount);
+
     boolean existsByCredentialId(String credentialId);
 }
 

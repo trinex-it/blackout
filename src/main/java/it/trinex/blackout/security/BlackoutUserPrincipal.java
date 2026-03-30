@@ -23,6 +23,7 @@ public class BlackoutUserPrincipal implements UserDetails{
     String password;
     String firstName;
     String lastName;
+    boolean passkeyEnabled;
     private Collection<? extends GrantedAuthority> authorities;
 
     @Override

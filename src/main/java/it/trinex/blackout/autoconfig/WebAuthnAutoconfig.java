@@ -26,6 +26,7 @@ public class WebAuthnAutoconfig {
     }
 
     @Bean
+    @ConditionalOnProperty(prefix = "blackout.webauthn", name = "enabled", havingValue = "true", matchIfMissing = false)
     public PasskeyController passkeyController(PasskeyService passkeyService, CookieService cookieService, RedisService redisService) {
         return new PasskeyController(passkeyService, cookieService, redisService);
     }

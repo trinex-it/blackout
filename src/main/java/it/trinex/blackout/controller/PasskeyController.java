@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import it.trinex.blackout.dto.request.*;
 import it.trinex.blackout.dto.response.AuthResponseDTO;
 import it.trinex.blackout.dto.response.AuthenticationStartResponse;
+import it.trinex.blackout.dto.response.ReauthenticationFinishResponse;
 import it.trinex.blackout.dto.response.RegistrationStartResponse;
 import it.trinex.blackout.exception.ExceptionResponseDTO;
 import it.trinex.blackout.service.CookieService;
@@ -233,20 +234,45 @@ public class PasskeyController {
             content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class))),
     })
     @PostMapping("/reauthenticate/finish")
-    public ResponseEntity<Void> finishReauthentication(
+    public ResponseEntity<ReauthenticationFinishResponse> finishReauthentication(
             @RequestBody AuthenticationFinishRequest request,
             @Parameter(hidden = true) @CookieValue(name = "passkey_session") String sessionId) {
 
         log.info("Finishing reauthentication, session: {}", sessionId);
 
-        ResponseCookie cookie = passkeyService.finishReauthentication(request, sessionId);
+        ReauthenticationFinishResponse response = passkeyService.finishReauthentication(request, sessionId);
 
         return ResponseEntity.ok()
                 .headers(headers -> {
-                    headers.add(HttpHeaders.SET_COOKIE, cookie.toString());
+                    headers.add(HttpHeaders.SET_COOKIE, response.getTokenCookie().toString());
                 })
-                .build();
+                .body(response);
     }
+
+    @Operation(
+            summary = "Obtain reauthentication token with password"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Reauthentication successful, sets reauthentication token"),
+            @ApiResponse(responseCode = "401", description = "Password was invalid or user was not authenticate",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class))),
+            @ApiResponse(responseCode = "500", description = "Reauthentication validation failed",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class))),
+    })
+    @PostMapping("/reauthenticate/password")
+    public ResponseEntity<ReauthenticationFinishResponse> passwordReauthentication(
+            @RequestBody PasswordReauthenticationRequest request) {
+
+        ReauthenticationFinishResponse response = passkeyService.passwordReauthentication(request);
+
+        return ResponseEntity.ok()
+                .headers(headers -> {
+                    headers.add(HttpHeaders.SET_COOKIE, response.getTokenCookie().toString());
+                })
+                .body(response);
+    }
+
+
 
 }
 
