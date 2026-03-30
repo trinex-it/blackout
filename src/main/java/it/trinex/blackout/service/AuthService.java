@@ -62,6 +62,10 @@ public class AuthService {
                 authAccountRepo.findByEmail(subject).get()
         );
 
+        if (authAccount.isPasswordless()) {
+            throw new PasswordlessEnabledException("Passwordless login enabled, use a passkey to login");
+        }
+
         if(authAccount.getTotpSecret() != null && !authAccount.getTotpSecret().isEmpty()) {
             if(totpCode != null && !totpCode.isEmpty()) {
                 if(!totpService.verifyCode(totpCode, authAccount.getTotpSecret())) {

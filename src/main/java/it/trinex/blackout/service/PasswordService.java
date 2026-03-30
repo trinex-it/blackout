@@ -3,8 +3,10 @@ package it.trinex.blackout.service;
 import it.trinex.blackout.dto.request.ResetPasswordOTPRequest;
 import it.trinex.blackout.dto.request.ResetPasswordRequest;
 import it.trinex.blackout.exception.InvalidResetOTPException;
+import it.trinex.blackout.exception.PasskeyRequiredException;
 import it.trinex.blackout.exception.PasswordMismatchException;
 import it.trinex.blackout.model.AuthAccount;
+import it.trinex.blackout.model.Passkey;
 import it.trinex.blackout.repository.AuthAccountRepo;
 import it.trinex.blackout.security.BlackoutUserPrincipal;
 import it.trinex.blackout.service.redis.RedisService;
@@ -15,10 +17,12 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.thymeleaf.context.Context;
 
 import java.io.UnsupportedEncodingException;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -57,14 +61,43 @@ public class PasswordService {
         mailService.sendMail(authAccount.getEmail(), context, "Password reset");
     }
 
+    @Transactional
+    public void enablePasswordlessLogin() {
+        AuthAccount authAccount = currentUserService.getAuthAccount();
+
+        List<Passkey> passkeys = authAccount.getPasskeys();
+
+        if (passkeys.isEmpty()) {
+            throw new PasskeyRequiredException("You need to have at least one passkey to enable passwordless login.");
+        }
+
+        authAccount.setPasswordless(true);
+        authAccountRepo.save(authAccount);
+    }
+
+    @Transactional
+    public void disablePasswordlessLogin() {
+        AuthAccount authAccount = currentUserService.getAuthAccount();
+        authAccount.setPasswordless(false);
+        authAccountRepo.save(authAccount);
+    }
+
     private String generateResetOTP(String subject) {
+
+        String lastOTP = redisTemplate.opsForValue().get(PASSWORD_OTP_KEY_PREFIX + subject);
+
+        // invalido otp attivo se presente
+        if (lastOTP != null && !lastOTP.isBlank()) {
+            redisTemplate.delete(PASSWORD_OTP_KEY_PREFIX + subject);
+        }
+
         try {
-            String key = PASSWORD_OTP_KEY_PREFIX + subject;
+            String completeKey = PASSWORD_OTP_KEY_PREFIX + subject;
             int ttlSeconds = 300;
             // OTP GENERATION
             String resetOTP = String.format("%06d", java.util.concurrent.ThreadLocalRandom.current().nextInt(1_000_000));
 
-            redisTemplate.opsForValue().set(key, resetOTP, Duration.ofSeconds(ttlSeconds));
+            redisTemplate.opsForValue().set(completeKey, resetOTP, Duration.ofSeconds(ttlSeconds));
             log.debug("Generated reset OTP for {} (TTL: {}s)", subject, ttlSeconds);
 
             return resetOTP;
@@ -74,9 +107,9 @@ public class PasswordService {
         }
     }
 
-    public boolean checkResetOTP(String subject, String userOTP) {
+    public boolean checkResetOTP(String resetKey, String userOTP) {
         try {
-            String key = PASSWORD_OTP_KEY_PREFIX + subject;
+            String key = PASSWORD_OTP_KEY_PREFIX + resetKey;
             String realOTP = redisTemplate.opsForValue().get(key);
             if (realOTP != null && realOTP.equals(userOTP)) {
                 return true;
@@ -88,24 +121,29 @@ public class PasswordService {
         }
     }
 
-    public void resetPasswordWithOTP(ResetPasswordOTPRequest request) {
+    private void removeResetOTP(String resetKey) {
+        redisTemplate.delete(PASSWORD_OTP_KEY_PREFIX + resetKey);
+    }
 
-        AuthAccount authAccount = authAccountRepo.findByUsername(request.getSubject()).orElse(
-                authAccountRepo.findByEmail(request.getSubject()).orElseThrow(
-                        () -> new UsernameNotFoundException("Username not found: " + request.getSubject())
+    public void resetPasswordWithOTP(ResetPasswordOTPRequest request, String subject) {
+
+        AuthAccount authAccount = authAccountRepo.findByUsername(subject).orElse(
+                authAccountRepo.findByEmail(subject).orElseThrow(
+                        () -> new UsernameNotFoundException("Username not found: " + subject)
                 )
         );
 
         String hashedPassword = passwordEncoder.encode(request.getNewPassword());
 
-        if(checkResetOTP(request.getSubject(), request.getOtp())) {
-            authAccount.setPasswordHash(hashedPassword);
-            authAccountRepo.save(authAccount);
-            redisService.revokeAllUserTokens(authAccount.getId());
-            return;
+        if(!checkResetOTP(subject, request.getOtp())) {
+            throw new InvalidResetOTPException("Invalid Reset OTP");
         }
 
-        throw new InvalidResetOTPException("Invalid Reset OTP");
+        authAccount.setPasswordHash(hashedPassword);
+        authAccount.setPasswordless(false);
+        authAccountRepo.save(authAccount);
+        redisService.revokeAllUserTokens(authAccount.getId());
+        removeResetOTP(subject);
     }
 
     public void resetPasswordWithoutOTP(ResetPasswordRequest request) {

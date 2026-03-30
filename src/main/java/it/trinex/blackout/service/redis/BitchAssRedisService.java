@@ -14,7 +14,7 @@ public class BitchAssRedisService implements RedisService {
 
     @PostConstruct
     public void init() {
-        log.info("Redis configuration not found. Initialized Dummy Redis Service");
+        log.info("Redis configuration not found. Initialized Bitch Ass Redis Service");
     }
 
 
@@ -41,6 +41,11 @@ public class BitchAssRedisService implements RedisService {
     @Override
     public void trackUserToken(Long userId, String jti, Date expiresAt, String tokenType) {
         return;
+    }
+
+    @Override
+    public void trackChallenge(String sessionId, String challenge) {
+
     }
 
     @Override

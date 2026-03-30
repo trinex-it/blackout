@@ -1,7 +1,9 @@
 package it.trinex.blackout.autoconfig;
 
 import it.trinex.blackout.properties.*;
+import it.trinex.blackout.security.BlackoutMethodSecurityExpressionHandler;
 import it.trinex.blackout.security.JwtAuthenticationFilter;
+import it.trinex.blackout.service.JwtService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
@@ -18,6 +20,7 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HttpBasicConfigurer;
@@ -47,6 +50,7 @@ public class SecurityConfig {
     //Even if no bean is defined Spring should inject its own
     private final ObjectProvider<Customizer<AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry>> authorizeHttpRequestsCustomizer;
     private final SignupProperties signupProperties;
+    private final JwtService jwtService;
 
     /**
      * Configures the security filter chain with JWT authentication.
@@ -77,7 +81,9 @@ public class SecurityConfig {
                     // Authentication endpoints - no authentication required
                     auth.requestMatchers(blackoutProperties.getBaseUrl() + "/auth/**").permitAll();
                     // Password reset endpoint - no authentication required
-                    auth.requestMatchers(blackoutProperties.getBaseUrl() + "/password/**").permitAll();
+                    auth.requestMatchers(blackoutProperties.getBaseUrl() + "/password-otp/**").permitAll();
+                    // Passkey authentication endpoint - no authentication required
+                    auth.requestMatchers(blackoutProperties.getBaseUrl() + "/passkey/**").permitAll();
                     // Swagger/OpenAPI endpoints - no authentication required (dev only)
                     auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll();
                     //2FA Recovery
@@ -176,5 +182,20 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
 
         return source;
+    }
+
+    /**
+     * Custom method security expression handler that enables Blackout-specific
+     * security expressions like {@code passkeyRequired()} in @PreAuthorize annotations.
+     *
+     * <p>This bean is conditional and can be overridden by users to provide custom
+     * expression logic.</p>
+     *
+     * @return the custom expression handler
+     */
+    @Bean
+    @ConditionalOnMissingBean(MethodSecurityExpressionHandler.class)
+    public MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
+        return new BlackoutMethodSecurityExpressionHandler(jwtService);
     }
 }

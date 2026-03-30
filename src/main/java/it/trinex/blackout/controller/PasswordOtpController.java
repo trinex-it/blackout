@@ -1,6 +1,8 @@
 package it.trinex.blackout.controller;
 
+import com.sun.net.httpserver.Headers;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -10,13 +12,16 @@ import it.trinex.blackout.dto.request.ResetPasswordOTPRequest;
 import it.trinex.blackout.dto.request.ValidateOTPRequest;
 import it.trinex.blackout.exception.ExceptionResponseDTO;
 import it.trinex.blackout.exception.InvalidResetOTPException;
+import it.trinex.blackout.service.CookieService;
 import it.trinex.blackout.service.PasswordService;
 import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,6 +35,9 @@ import java.io.UnsupportedEncodingException;
 public class PasswordOtpController {
 
     private final PasswordService passwordService;
+    private final CookieService cookieService;
+
+    private static final String RESET_COOKIE_NAME = "reset_key";
 
     @PostMapping("/request-reset/{subject}")
     @Operation(summary = "Request password reset with OTP", description = """
@@ -56,7 +64,12 @@ public class PasswordOtpController {
     public ResponseEntity<Void> requestResetPasswordWithOTP(
             @PathVariable @NotBlank(message = "Subject is required.") String subject) throws MessagingException, UnsupportedEncodingException {
         passwordService.sendResetPasswordEmail(subject);
-        return ResponseEntity.ok().build();
+        ResponseCookie resetCookie= cookieService.generateGenericCookie(RESET_COOKIE_NAME, subject, 300L);
+        return ResponseEntity.ok()
+                .headers(headers -> {
+                    headers.add(HttpHeaders.SET_COOKIE, resetCookie.toString());
+                })
+                .build();
     }
 
     @PostMapping("/validate-otp")
@@ -80,11 +93,14 @@ public class PasswordOtpController {
             """,
             content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
     })
-    public ResponseEntity<Void> validateOTP(@RequestBody @Valid ValidateOTPRequest request) {
-        if (passwordService.checkResetOTP(request.getSubject(), request.getOtp())) {
+    public ResponseEntity<Void> validateOTP(@RequestBody @Valid ValidateOTPRequest request, @Parameter(hidden = true) @CookieValue(name = RESET_COOKIE_NAME, required = false) String resetKey) {
+        if (resetKey == null) {
+            throw new InvalidResetOTPException("OTP is not valid or expired");
+        }
+        if (passwordService.checkResetOTP(resetKey, request.getOtp())) {
             return ResponseEntity.ok().build();
         }
-        throw new InvalidResetOTPException("OTP is not valid");
+        throw new InvalidResetOTPException("OTP is not valid or expired");
     }
 
     @PostMapping("/reset-with-otp")
@@ -112,8 +128,11 @@ public class PasswordOtpController {
         @ApiResponse(responseCode = "404", description = "User account not found",
             content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
     })
-    public ResponseEntity<Void> resetOTP(@RequestBody @Valid ResetPasswordOTPRequest request) {
-        passwordService.resetPasswordWithOTP(request);
+    public ResponseEntity<Void> resetOTP(@RequestBody @Valid ResetPasswordOTPRequest request, @Parameter(hidden = true) @CookieValue(name = RESET_COOKIE_NAME, required = false) String resetKey) {
+        if (resetKey == null) {
+            throw new InvalidResetOTPException("OTP is not valid or expired");
+        }
+        passwordService.resetPasswordWithOTP(request, resetKey);
         return ResponseEntity.ok().build();
     }
 }

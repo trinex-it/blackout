@@ -4,6 +4,7 @@ import it.trinex.blackout.dto.response.AuthResponseDTO;
 import it.trinex.blackout.service.AuthService;
 import it.trinex.blackout.service.CookieService;
 import it.trinex.blackout.service.JwtService;
+import it.trinex.blackout.service.enums.TokenType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -71,7 +72,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // 3. Handle Auto-Refresh (only if from cookie and configured)
         if (fromCookie && autoRefresh && authService != null && cookieService != null) {
-            if (accessToken == null || !jwtService.isTokenValid(accessToken)) {
+            if (accessToken == null || !jwtService.isTokenValid(accessToken, TokenType.ACCESS.name())) {
                 if (refreshToken != null && jwtService.isRefreshTokenValid(refreshToken)) {
                     try {
                         log.debug("Access token invalid, attempting refresh for: {}", request.getRequestURI());
@@ -94,7 +95,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 4. Validate and Set Authentication
         if (accessToken != null) {
             try {
-                if (jwtService.isTokenValid(accessToken)) {
+                if (jwtService.isTokenValid(accessToken, TokenType.ACCESS.name())) {
                     UserDetails userPrincipal = jwtService.extractUserPrincipal(accessToken);
 
                     if (SecurityContextHolder.getContext().getAuthentication() == null) {

@@ -54,8 +54,8 @@ public class BlackoutAutoconfig {
 
     @Bean
     @ConditionalOnProperty(prefix = "blackout.mail", name = "enabled", havingValue = "true")
-    public PasswordOtpController passwordOtpController(PasswordService passwordService) {
-        return new PasswordOtpController(passwordService);
+    public PasswordOtpController passwordOtpController(PasswordService passwordService, CookieService cookieService) {
+        return new PasswordOtpController(passwordService, cookieService);
     }
 
     @Bean

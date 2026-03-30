@@ -9,8 +9,9 @@ A Spring Boot starter that provides JWT-based authentication and authorization w
   - [User Registration](#user-registration)
   - [Password Reset via Email](#password-reset-via-email)
   - [Two-Factor Authentication](#two-factor-authentication)
-  - [Account Disabling](#account-disabling)
-  - [Token Revocation with Redis](#token-revocation-with-redis)
+- [Passkey Authentication](#passkey-authentication)
+- [Account Disabling](#account-disabling)
+- [Token Revocation with Redis](#token-revocation-with-redis)
 - [Security Configuration](#security-configuration)
   - [Multi-Database Architecture](#multi-database-architecture)
   - [Custom User Principals](#custom-user-principals)
@@ -495,8 +496,83 @@ When 2FA is enabled, the login endpoint behavior changes:
      "refresh_token_expiration": 2592000000,
      "needOTP": false
    }
-   ```
+    ```
 
+
+### Passkey Authentication
+
+Blackout supports WebAuthn/Passkey for phishing-resistant, biometric, and passwordless authentication. This feature is disabled by default and must be explicitly enabled.
+
+#### Configuration
+
+Enable passkey authentication by adding the following configuration to your `application.yml`:
+
+```yaml
+blackout:
+  webauthn:
+    enabled: true # Enable passkey feature [false]
+    rpId: "localhost" # Relying Party ID (must match your domain)
+    rpName: "Blackout Demo" # Name displayed during authentication
+    origins: # Allowed origins for WebAuthn requests
+      - "http://localhost:3000"
+    reauthentication-timeout: 900 # Validity of reauth_token in seconds [900 (15 min)]
+```
+
+#### Passkey Registration
+
+Users can register multiple passkeys for their account. Registration must be performed while the user is already authenticated via traditional means (password or 2FA).
+
+1. **Start Registration** - Client calls `POST /passkey/register/start` to get the cryptographic challenge and options.
+2. **Device Creation** - Client calls `navigator.credentials.create()` with the provided options.
+3. **Finish Registration** - Client sends the result to `POST /passkey/register/finish` to store the passkey.
+
+#### Passkey Authentication (Login)
+
+Users can log in using their registered passkeys without needing a password.
+
+1. **Start Authentication** - Client calls `POST /passkey/authenticate/start` to get the challenge.
+2. **Device Authentication** - Client calls `navigator.credentials.get()` with the provided options.
+3. **Finish Authentication** - Client sends the result to `POST /passkey/authenticate/finish` to obtain JWT tokens.
+
+#### Reauthentication with Passkey
+
+For sensitive operations, you can require a recent reauthentication (e.g., via biometric check).
+
+**1. Mark Protected Endpoints:**
+In your controllers, use the `@PreAuthorize("passkeyRequired()")` annotation:
+
+```java
+@PreAuthorize("passkeyRequired()")
+@PostMapping("/sensitive-operation")
+public ResponseEntity<Void> performSensitiveAction() {
+    // This code only runs if the user has a valid reauth_token
+    return ResponseEntity.ok().build();
+}
+```
+
+**2. Handle 403 Forbidden:**
+When an endpoint is marked with `passkeyRequired()`, Blackout will return a **403 Forbidden** with a specific error if the user has not recently reauthenticated. The client must then initiate the reauthentication flow:
+
+- **Start**: `POST /passkey/reauthenticate/start` (Returns user's registered passkeys for selection)
+- **WebAuthn**: Client calls `navigator.credentials.get()`
+- **Finish**: `POST /passkey/reauthenticate/finish` (Returns a `reauth_token` in the body and sets a `reauth_token` cookie)
+- **Password Fallback**: `POST /passkey/reauthenticate/password` (Allows reauthenticating with password instead of passkey)
+
+**3. The reauth_token Mechanism:**
+The `reauth_token` is a short-lived JWT that verifies a recent identity check.
+- **Cookie**: Automatically sent in a secure, httpOnly cookie (`reauth_token`).
+- **Header**: Can be manually sent as the `X-Reauth-Token` header if cookies are not used.
+- **Duration**: Configurable via `blackout.webauthn.reauthentication-timeout` (default: 15 minutes).
+
+#### Passwordless Mode
+
+A user can enable passwordless login, which restricts authentication to passkeys only.
+
+- **Enable**: `POST /password/enable-passwordless`
+- **Disable**: `POST /password/disable-passwordless`
+- **Requirement**: The user must have at least one registered passkey to enable the feature.
+- **Effect**: Traditional password-based login will be disabled for this account until passwordless mode is disabled.
+- **Passwordless mode is automatically disabled** after a successful password reset to ensure the user can log in with their new password.
 
 ### Account Disabling
 
@@ -805,7 +881,7 @@ Add the Blackout dependency to your `pom.xml`:
 <dependency>
     <groupId>it.trinex</groupId>
     <artifactId>blackout</artifactId>
-    <version>1.0.9</version>
+    <version>1.0.10</version>
 </dependency>
 ```
 
@@ -1417,6 +1493,15 @@ blackout:
   signup:
     enabled: false # Enable default user registration endpoint [false]
     default-role: USER # Default role for new users (only in case default signup is enabled) [USER]
+
+  # Passkey Authentication configuration
+  webauthn:
+    enabled: false # Enable passkey authentication [false]
+    rpId: "localhost" # Relying Party ID (must match your domain)
+    rpName: "Blackout Demo" # Relying Party name (displayed to user)
+    origins: # Allowed origins for WebAuthn requests
+      - "http://localhost:3000"
+    reauthentication-timeout: 900 # Validity of reauth_token in seconds [900 (15 min)]
 
   # Email configuration for password reset and other email features
   mail:
