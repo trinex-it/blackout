@@ -75,6 +75,13 @@ public class PasswordService {
         authAccountRepo.save(authAccount);
     }
 
+    @Transactional
+    public void disablePasswordlessLogin() {
+        AuthAccount authAccount = currentUserService.getAuthAccount();
+        authAccount.setPasswordless(false);
+        authAccountRepo.save(authAccount);
+    }
+
     private String generateResetOTP(String subject) {
 
         String lastOTP = redisTemplate.opsForValue().get(PASSWORD_OTP_KEY_PREFIX + subject);

@@ -60,13 +60,13 @@ public class PasswordController {
     }
 
     @PostMapping(value = "/enable-passwordless")
-    @Operation(summary = "Reset password", description = """
+    @Operation(summary = "Enable passwordless login", description = """
         Enable passwordless login:
         - User needs to create at least one passkey to enable this feature
         """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Passwordless login enabled successfully"),
-            @ApiResponse(responseCode = "403", description = "User didnt create any passkeys"),
+            @ApiResponse(responseCode = "403", description = "User didn't create any passkeys"),
             @ApiResponse(responseCode = "401", description = "User not authenticated or invalid credentials",
                     content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "User account not found",
@@ -74,6 +74,23 @@ public class PasswordController {
     })
     public ResponseEntity<Void> enablePasswordless() {
         passwordService.enablePasswordlessLogin();
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping(value = "/disable-passwordless")
+    @Operation(summary = "Disable passwordless login", description = """
+        Disable passwordless login:
+        - Re-enables password-based authentication for the account
+        """)
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Passwordless login disabled successfully"),
+            @ApiResponse(responseCode = "401", description = "User not authenticated or invalid credentials",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "User account not found",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+    })
+    public ResponseEntity<Void> disablePasswordless() {
+        passwordService.disablePasswordlessLogin();
         return ResponseEntity.ok().build();
     }
 
