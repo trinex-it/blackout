@@ -28,7 +28,7 @@ public class ExceptionResponseDTO {
     public ExceptionResponseDTO(BlackoutException e) {
         this.timestamp = Instant.now();
         this.status = e.getStatus().value();
-        this.category = e.getCategory();
+        this.category = e.getCategory().name();
         this.message = e.getDescription();
     }
 }

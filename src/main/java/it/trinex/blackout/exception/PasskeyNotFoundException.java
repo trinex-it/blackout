@@ -6,7 +6,7 @@ public class PasskeyNotFoundException extends BlackoutException{
     public PasskeyNotFoundException(String message) {
         super(
                 HttpStatus.BAD_REQUEST,
-                "PASSKEY",
+                ExceptionCategory.PASSKEY,
                 message
         );
     }

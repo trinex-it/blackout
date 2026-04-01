@@ -6,7 +6,7 @@ public class UnauthorizedException extends BlackoutException {
     public UnauthorizedException(String message) {
         super(
                 HttpStatus.UNAUTHORIZED,
-                "UNAUTHORIZED",
+                ExceptionCategory.UNAUTHORIZED,
                 message
         );
     }

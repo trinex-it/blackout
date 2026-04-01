@@ -6,7 +6,7 @@ public class PasswordlessEnabledException extends BlackoutException {
     public PasswordlessEnabledException(String message) {
         super(
                 HttpStatus.FORBIDDEN,
-                "PASSKEY",
+                ExceptionCategory.PASSKEY,
                 message
         );
     }

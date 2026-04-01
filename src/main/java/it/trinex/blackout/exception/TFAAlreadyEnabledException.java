@@ -4,6 +4,6 @@ import org.springframework.http.HttpStatus;
 
 public class TFAAlreadyEnabledException extends BlackoutException{
     public TFAAlreadyEnabledException(String message) {
-        super(HttpStatus.CONFLICT, "2FA_ERROR", message);
+        super(HttpStatus.CONFLICT, ExceptionCategory.TFA_ERROR, message);
     }
 }

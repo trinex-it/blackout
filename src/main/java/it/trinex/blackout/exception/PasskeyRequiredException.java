@@ -6,7 +6,7 @@ public class PasskeyRequiredException extends BlackoutException {
     public PasskeyRequiredException(String message) {
         super(
                 HttpStatus.FORBIDDEN,
-                "PASSKEY",
+                ExceptionCategory.PASSKEY,
                 message
         );
     }

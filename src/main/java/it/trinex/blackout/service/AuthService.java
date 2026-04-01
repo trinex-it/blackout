@@ -117,7 +117,7 @@ public class AuthService {
         if(operator.getAuthId().equals(authAccount.getId())) {
             throw new BlackoutException(
                     HttpStatus.BAD_REQUEST,
-                    "INVALID_OPERATION",
+                    ExceptionCategory.INVALID_OPERATION,
                     "It is not allowed to self-disable an authAccount"
             );
         }

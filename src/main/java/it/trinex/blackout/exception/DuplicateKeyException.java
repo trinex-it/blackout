@@ -14,7 +14,7 @@ public class DuplicateKeyException extends BlackoutException {
      * @param description Human-readable description of what field/value is duplicated
      */
     public DuplicateKeyException(String description) {
-        super(HttpStatus.CONFLICT, "DUPLICATE_KEY", description);
+        super(HttpStatus.CONFLICT, ExceptionCategory.DUPLICATE_KEY, description);
     }
 
     /**
@@ -24,7 +24,7 @@ public class DuplicateKeyException extends BlackoutException {
      * @param fieldValue The value that already exists
      */
     public DuplicateKeyException(String fieldName, String fieldValue) {
-        super(HttpStatus.CONFLICT, "DUPLICATE_KEY",
+        super(HttpStatus.CONFLICT, ExceptionCategory.DUPLICATE_KEY,
               String.format("An entry with %s '%s' already exists", fieldName, fieldValue));
     }
 }

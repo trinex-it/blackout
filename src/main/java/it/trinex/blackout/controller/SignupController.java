@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import it.trinex.blackout.dto.request.SignupRequestDTO;
 import it.trinex.blackout.exception.BlackoutException;
+import it.trinex.blackout.exception.ExceptionCategory;
 import it.trinex.blackout.model.AuthAccount;
 import it.trinex.blackout.properties.SignupProperties;
 import it.trinex.blackout.service.AuthService;
@@ -42,7 +43,7 @@ public class SignupController {
     public ResponseEntity<Void> signup(@Valid @RequestBody SignupRequestDTO request) {
         // Validate password confirmation
         if (!request.getPassword().equals(request.getConfirmPassword())) {
-            throw new BlackoutException(HttpStatus.BAD_REQUEST, "PASSWORDS_DO_NOT_MATCH", "Passwords do not match");
+            throw new BlackoutException(HttpStatus.BAD_REQUEST, ExceptionCategory.PASSWORDS_DO_NOT_MATCH, "Passwords do not match");
         }
 
         // Create new AuthAccount

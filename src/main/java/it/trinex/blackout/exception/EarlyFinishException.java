@@ -6,7 +6,7 @@ public class EarlyFinishException extends BlackoutException {
     public EarlyFinishException(String message) {
         super(
                 HttpStatus.BAD_REQUEST,
-                "PASSKEY",
+                ExceptionCategory.PASSKEY,
                 message
         );
     }

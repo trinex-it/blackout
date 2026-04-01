@@ -42,22 +42,6 @@ public class BlackoutExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
-//    @ExceptionHandler(EarlyFinishException.class)
-//    public ResponseEntity<ExceptionResponseDTO> handleDuplicateKeyException(EarlyFinishException ex) {
-//        logBlackoutException(ex);
-//
-//        ExceptionResponseDTO response = new ExceptionResponseDTO(ex);
-//
-//        return ResponseEntity.status(ex.getStatus()).body(response);
-//    }
-//
-//    @ExceptionHandler(PasskeyRequiredException.class)
-//    public ResponseEntity<ExceptionResponseDTO> handlePasskeyRequiredException(PasskeyRequiredException ex) {
-//        logBlackoutException(ex);
-//        ExceptionResponseDTO response = new ExceptionResponseDTO(ex);
-//        return ResponseEntity.status(ex.getStatus()).body(response);
-//    }
-
     // Intercetta gli errori di validazione (@Valid sui DTO)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
@@ -92,7 +76,7 @@ public class BlackoutExceptionHandler {
 
     @ExceptionHandler(AuthorizationDeniedException.class)
     public ResponseEntity<ExceptionResponseDTO> handleAccessDeniedException(AuthorizationDeniedException ex) {
-        BlackoutException myEx = new BlackoutException(HttpStatus.FORBIDDEN, "AUTHORIZATION", "User is not authorized to access this resource");
+        BlackoutException myEx = new BlackoutException(HttpStatus.FORBIDDEN, ExceptionCategory.AUTHORIZATION, "User is not authorized to access this resource");
 
         logBlackoutException(myEx);
 
