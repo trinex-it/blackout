@@ -3,27 +3,26 @@ package it.trinex.blackout.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import it.trinex.blackout.dto.request.*;
-import it.trinex.blackout.dto.response.AuthResponseDTO;
-import it.trinex.blackout.dto.response.AuthenticationStartResponse;
-import it.trinex.blackout.dto.response.ReauthenticationFinishResponse;
-import it.trinex.blackout.dto.response.RegistrationStartResponse;
+import it.trinex.blackout.dto.response.*;
 import it.trinex.blackout.exception.ExceptionResponseDTO;
+import it.trinex.blackout.model.Passkey;
 import it.trinex.blackout.service.CookieService;
 import it.trinex.blackout.service.PasskeyService;
 import it.trinex.blackout.service.redis.RedisService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseCookie;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping(value = "/passkey", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -73,7 +72,8 @@ public class PasskeyController {
             """
     )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Passkey registered successfully"),
+        @ApiResponse(responseCode = "200", description = "Passkey registered successfully",
+        content = @Content(schema = @Schema(implementation = RegistrationFinishResponse.class))),
         @ApiResponse(responseCode = "400", description = "Invalid request or registration not started",
             content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class))),
         @ApiResponse(responseCode = "401", description = "User not authenticated",
@@ -82,12 +82,16 @@ public class PasskeyController {
             content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class))),
     })
     @PostMapping("/register/finish")
-    public ResponseEntity<Void> finishRegistration(
+    public ResponseEntity<RegistrationFinishResponse> finishRegistration(
             @RequestBody RegistrationFinishRequest request) {
 
-        passkeyService.finishRegistration(request);
+        RegistrationFinishResponse response = passkeyService.finishRegistration(request);
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.status(HttpStatus.OK)
+                .headers(headers -> {
+                    headers.add(HttpHeaders.SET_COOKIE, response.getAccessTokenCookie().toString());
+                })
+                .body(response);
     }
 
     @Operation(
@@ -272,7 +276,39 @@ public class PasskeyController {
                 .body(response);
     }
 
+    @Operation(
+            summary = "List available passkeys"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Returns list of available passkeys",
+                    content = @Content(
+                            array = @ArraySchema(
+                                    schema = @Schema(implementation = Passkey.class)
+                            )
+                    )),
+            @ApiResponse(responseCode = "401", description = "Authentication failed",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+    })
+    @GetMapping("/list")
+    public ResponseEntity<List<Passkey>> list() {
+        return ResponseEntity.ok(passkeyService.getAllPasskeys());
+    }
 
+    @Operation(
+            summary = "Delete specific passkey"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Passkey deleted successfully."),
+            @ApiResponse(responseCode = "401", description = "Authentication failed",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Passkey not found",
+                    content = @Content(schema = @Schema(implementation = ExceptionResponseDTO.class)))
+    })
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<Void> deletePasskey(@PathVariable Long id) {
+        passkeyService.deletePasskey(id);
+        return ResponseEntity.noContent().build();
+    }
 
 }
 

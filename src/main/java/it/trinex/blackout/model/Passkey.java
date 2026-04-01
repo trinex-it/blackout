@@ -1,5 +1,6 @@
 package it.trinex.blackout.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -19,19 +20,24 @@ public class Passkey {
     private Long id;
     
     @Column(unique = true, nullable = false, length = 500)
+    @JsonIgnore
     private String credentialId; // Base64 URL encoded credential ID
     
     @Column(nullable = false, length = 2000)
+    @JsonIgnore
     private String publicKey; // Base64 encoded public key
     
     @Column(nullable = false)
+    @JsonIgnore
     private Long signCount;
     
     @Column(nullable = false)
+    @JsonIgnore
     private String aaguid; // Authenticator AAGUID
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "authAccount_id", nullable = false)
+    @JsonIgnore
     private AuthAccount authAccount;
 
     private String deviceName; // e.g., "MacBook Pro", "iPhone 14"
@@ -42,10 +48,12 @@ public class Passkey {
     private LocalDateTime lastUsedAt;
     
     @Column(nullable = false)
+    @JsonIgnore
     private boolean enabled = true;
     
     // Transports (e.g., usb, nfc, ble, internal)
     @Column(length = 500)
+    @JsonIgnore
     private String transports;
     
     @PrePersist

@@ -17,14 +17,9 @@ import com.webauthn4j.util.Base64UrlUtil;
 import it.trinex.blackout.dto.request.AuthenticationFinishRequest;
 import it.trinex.blackout.dto.request.PasswordReauthenticationRequest;
 import it.trinex.blackout.dto.request.RegistrationFinishRequest;
-import it.trinex.blackout.dto.response.AuthResponseDTO;
-import it.trinex.blackout.dto.response.AuthenticationStartResponse;
-import it.trinex.blackout.dto.response.ReauthenticationFinishResponse;
-import it.trinex.blackout.dto.response.RegistrationStartResponse;
-import it.trinex.blackout.exception.EarlyFinishException;
-import it.trinex.blackout.exception.PasswordMismatchException;
-import it.trinex.blackout.exception.PasswordlessEnabledException;
-import it.trinex.blackout.exception.UnauthorizedException;
+import it.trinex.blackout.dto.request.RegistrationStartRequest;
+import it.trinex.blackout.dto.response.*;
+import it.trinex.blackout.exception.*;
 import it.trinex.blackout.model.AuthAccount;
 import it.trinex.blackout.model.Passkey;
 import it.trinex.blackout.properties.WebAuthnProperties;
@@ -33,6 +28,7 @@ import it.trinex.blackout.security.BlackoutUserPrincipal;
 import it.trinex.blackout.service.redis.RedisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -69,6 +65,7 @@ public class PasskeyService {
     private final ObjectMapper objectMapper;
     private final CookieService cookieService;
     private final PasswordEncoder passwordEncoder;
+    private final RedisService redisService;
 
     private String extractSubject(AuthAccount authAccount) {
         if(authAccount.getUsername() == null || authAccount.getUsername().isEmpty()) {
@@ -107,7 +104,7 @@ public class PasskeyService {
                 .user(RegistrationStartResponse.UserInfo.builder()
                         .id(userHandle)
                         .name(extractSubject(authAccount))
-                        .displayName(authAccount.getFirstName()) //TODO: CI SERVE?
+                        .displayName(extractSubject(authAccount)) //TODO: CI SERVE?
                         .build())
                 .pubKeyCredParams(Arrays.asList(
                         RegistrationStartResponse.PublicKeyCredentialParameters.builder()
@@ -134,7 +131,7 @@ public class PasskeyService {
      * Finish registration - verify credential and store passkey
      */
     @Transactional
-    public void finishRegistration(RegistrationFinishRequest request) {
+    public RegistrationFinishResponse finishRegistration(RegistrationFinishRequest request) {
 
         AuthAccount authAccount = currentUserService.getAuthAccount();
 
@@ -208,9 +205,19 @@ public class PasskeyService {
             
             // Clean up challenge
             challengeStore.remove(String.valueOf(authAccount.getId()));
-            
+
+            String accessToken = jwtService.generateAccessToken(currentUserService.getCurrentPrincipal());
+            redisService.revokeAllUserTokens(authAccount.getId());
+
+            ResponseCookie accessTokenCookie = cookieService.generateAccessCookie(accessToken);
+
             log.info("Successfully registered passkey for user: {}", extractSubject(authAccount));
-            
+
+            return RegistrationFinishResponse.builder()
+                            .accessToken(accessToken)
+                            .accessTokenCookie(accessTokenCookie)
+                            .build();
+
         } catch (Exception e) {
             log.error("Error during passkey registration", e);
             throw new RuntimeException("Failed to register passkey: " + e.getMessage());
@@ -607,6 +614,18 @@ public class PasskeyService {
 
         log.debug("Origin '{}' validated successfully", origin);
         return new Origin(origin);
+    }
+
+    public List<Passkey> getAllPasskeys() {
+        return passkeyRepository.findByAuthAccount(currentUserService.getAuthAccount());
+    }
+
+    public void deletePasskey(Long id) {
+        try {
+            passkeyRepository.deleteById(id);
+        } catch (EmptyResultDataAccessException e) {
+            throw new PasskeyNotFoundException("Passkey not found with id: " + id);
+        }
     }
 
 
