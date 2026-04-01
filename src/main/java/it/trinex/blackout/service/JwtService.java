@@ -4,6 +4,7 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
+import it.trinex.blackout.exception.TokenRevokedException;
 import it.trinex.blackout.security.BlackoutPrincipalFactory;
 import it.trinex.blackout.security.BlackoutUserPrincipal;
 import it.trinex.blackout.properties.JwtProperties;
@@ -130,15 +131,20 @@ public class JwtService {
      * @param token the JWT token to validate
      * @return true if token is valid, false otherwise
      */
-    public boolean isTokenValid(String token, String requiredTokenType) {
+    public boolean isTokenValid(String token, TokenType requiredTokenType) {
         try {
             Claims claims = extractAllClaims(token);
-            String tokenType = claims.get(TOKEN_TYPE_CLAIM, String.class);
-            if(redisService.isAccessTokenRevoked(extractJti(token))) {
-                log.debug("Access token {} is revoked", extractJti(token));
+            TokenType tokenType = claims.get(TOKEN_TYPE_CLAIM, TokenType.class);
+            if(isTokenExpired(claims)) {
+                log.debug("Token {} is expired", extractJti(token));
                 return false;
             }
-            return requiredTokenType.equals(tokenType) && !isTokenExpired(claims);
+            if(redisService.isAccessTokenRevoked(extractJti(token))) {
+                log.debug("Token {} is revoked", extractJti(token));
+                //Se non sta su redis salta tutto
+                throw new TokenRevokedException("Token is revoked");
+            }
+            return requiredTokenType.equals(tokenType);
         } catch (ExpiredJwtException e) {
             log.debug("Token expired: {}", e.getMessage());
             return false;

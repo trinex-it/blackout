@@ -71,7 +71,7 @@ public class BlackoutSecurityExpressionRoot extends SecurityExpressionRoot imple
             passkeyToken = request.getHeader(REAUTH_HEADER_NAME);
         }
 
-        if (passkeyToken != null && !passkeyToken.isBlank() && jwtService.isTokenValid(passkeyToken, TokenType.PASSKEY.name())) {
+        if (passkeyToken != null && !passkeyToken.isBlank() && jwtService.isTokenValid(passkeyToken, TokenType.PASSKEY)) {
             return true;
         }
 

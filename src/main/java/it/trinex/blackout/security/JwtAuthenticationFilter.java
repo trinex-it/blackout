@@ -72,7 +72,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // 3. Handle Auto-Refresh (only if from cookie and configured)
         if (fromCookie && autoRefresh && authService != null && cookieService != null) {
-            if (accessToken == null || !jwtService.isTokenValid(accessToken, TokenType.ACCESS.name())) {
+            if (accessToken == null || !jwtService.isTokenValid(accessToken, TokenType.ACCESS)) {
                 if (refreshToken != null && jwtService.isRefreshTokenValid(refreshToken)) {
                     try {
                         log.debug("Access token invalid, attempting refresh for: {}", request.getRequestURI());
@@ -95,7 +95,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 4. Validate and Set Authentication
         if (accessToken != null) {
             try {
-                if (jwtService.isTokenValid(accessToken, TokenType.ACCESS.name())) {
+                if (jwtService.isTokenValid(accessToken, TokenType.ACCESS)) {
                     UserDetails userPrincipal = jwtService.extractUserPrincipal(accessToken);
 
                     if (SecurityContextHolder.getContext().getAuthentication() == null) {
